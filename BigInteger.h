@@ -8,6 +8,7 @@ class BigInteger
 {
 public:
 	BigInteger();
+	BigInteger(word w);
 	BigInteger(const BigInteger& other);
 
 	BigInteger operator+(const BigInteger& other) const;
@@ -15,8 +16,21 @@ public:
 	BigInteger& operator+=(const BigInteger& other);
 	BigInteger& operator-=(const BigInteger& other);
 
+	BigInteger operator*(const BigInteger& other) const;
+	BigInteger operator*(word other) const;
+	BigInteger& operator*=(const BigInteger& other);
+	BigInteger& operator*=(word other);
+
+	BigInteger operator/(const BigInteger& other) const;
+	BigInteger operator/(word other) const;
+	BigInteger& operator/=(const BigInteger& other);
+	BigInteger& operator/=(word other);
+
+	BigInteger operator%(const BigInteger& other) const;
+	word operator%(word other) const;
+
 	BigInteger& operator++(); //prefix
-	BigInteger operator++(int); //
+	BigInteger operator++(int); //postfix
 	BigInteger& operator--(); //prefix
 	BigInteger operator--(int); //postfix
 

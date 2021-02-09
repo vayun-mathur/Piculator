@@ -140,9 +140,12 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClInclude Include="BigInteger.h" />
+    <ClInclude Include="NNT.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="BigInteger.cpp" />
+    <ClCompile Include="main.cpp" />
+    <ClCompile Include="NNT.cpp" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

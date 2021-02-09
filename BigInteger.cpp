@@ -2,10 +2,16 @@
 #include <intrin.h>
 #include <immintrin.h>
 #include <exception>
+#include "NNT.h"
 
 BigInteger::BigInteger()
 	: arr(new word[msb])
 {
+}
+
+BigInteger::BigInteger(word w)
+{
+	*this = w;
 }
 
 BigInteger::BigInteger(const BigInteger& other)
@@ -49,6 +55,176 @@ BigInteger& BigInteger::operator-=(const BigInteger& other)
 		carry = _subborrow_u64(carry, this->arr[bit], other.arr[bit], this->arr + bit);
 	}
 	return *this;
+}
+
+void carryTrain(word* arr, index index, word value) {
+	bool carry = _addcarry_u64(0, arr[index], value, arr + index);
+	while (index < msb && carry) {
+		carry = _addcarry_u64(carry, arr[index], 0, arr + index);
+		++index;
+	}
+}
+
+BigInteger BigInteger::operator*(const BigInteger& other) const
+{
+	int n = 4 * msb;
+	DWORD* x, * y, * xx, * yy, a;
+	x = new DWORD[n], xx = new DWORD[n];
+	y = new DWORD[n], yy = new DWORD[n];
+	for (int i = 0; i < n; i++) {
+		x[i] = ((uint16_t*)this->arr)[i];
+		y[i] = ((uint16_t*)other.arr)[i];
+	}
+	//NTT
+	NNT ntt;
+	ntt.NTT(xx, x, n);
+	ntt.NTT(yy, y);
+
+	// Convolution
+	for (int i = 0; i < n; i++) xx[i] = ntt.modmul(xx[i], yy[i]);
+
+	//INTT
+	ntt.iNTT(yy, xx);
+	BigInteger res = 0;
+	for (index i = 0; i < msb; i++) {
+		//word low = yy[i * 4] + ((word)yy[i * 4 + 1] << 16) + ((word)yy[i * 4 + 2] << 32) + ((word)yy[i * 4 + 3] << 48);
+		word low = 0;
+		word high = 0;
+		for (int k = 0; k < 4; k++) {
+			high += _addcarry_u64(0, low, ((word)yy[i * 4 + k]) << (16 * k), &low);
+		}
+		high += ((word)yy[i * 4 + 3] >> 16);
+		carryTrain(res.arr, i, low);
+		carryTrain(res.arr, i + 1, high);
+	}
+
+	delete[] x;
+	delete[] y;
+	delete[] xx;
+	delete[] yy;
+}
+
+BigInteger BigInteger::operator*(word other) const
+{
+	BigInteger res;
+	word high = 0;
+	for (index bit = 0; bit < msb; ++bit) {
+		word high_temp;
+		res.arr[bit] = _umul128(this->arr[bit], other, &high_temp);
+		high_temp += _addcarry_u64(0, res.arr[bit], high, res.arr + bit);
+	}
+	return res;
+}
+
+BigInteger& BigInteger::operator*=(const BigInteger& other)
+{
+	BigInteger& _this = *this;
+	_this = _this * other;
+	return _this;
+}
+
+BigInteger& BigInteger::operator*=(word other)
+{
+	word high = 0;
+	for (index bit = 0; bit < msb; ++bit) {
+		word high_temp;
+		this->arr[bit] = _umul128(this->arr[bit], other, &high_temp);
+		high_temp += _addcarry_u64(0, this->arr[bit], high, this->arr + bit);
+	}
+	return *this;
+}
+
+BigInteger BigInteger::operator/(const BigInteger& other) const
+{
+	BigInteger dividend;
+	BigInteger divisor;
+	dividend = *this;
+	divisor = other;
+	BigInteger res;
+	index bit = msb-1;
+	while (bit >= 0) {
+		if (divisor < dividend) {
+			word mand = 1ull << 63;
+			word bit_val = 0;
+			BigInteger mulres = divisor << 63ull;
+			while (mand) {
+				if (mulres < dividend) {
+					dividend -= mulres;
+					bit_val += mand;
+				}
+				mand >>= 1;
+				mulres >>= 1;
+			}
+			res.arr[bit] = bit_val;
+		}
+		divisor >>= 64;
+		bit--;
+	}
+	return res;
+}
+
+BigInteger BigInteger::operator/(word other) const
+{
+	BigInteger res;
+	word high = 0;
+	for (index bit = msb - 1; bit >= 0; --bit) {
+		res.arr[bit] = _udiv128(high, this->arr[bit], other, &high);
+	}
+	return res;
+}
+
+BigInteger& BigInteger::operator/=(const BigInteger& other)
+{
+	BigInteger& _this = *this;
+	_this = _this / other;
+	return _this;
+}
+
+BigInteger& BigInteger::operator/=(word other)
+{
+	word high = 0;
+	for (index bit = msb - 1; bit >= 0; --bit) {
+		this->arr[bit] = _udiv128(high, this->arr[bit], other, &high);
+	}
+	return *this;
+}
+
+BigInteger BigInteger::operator%(const BigInteger& other) const
+{
+	BigInteger dividend;
+	BigInteger divisor;
+	dividend = *this;
+	divisor = other;
+	BigInteger res;
+	index bit = msb - 1;
+	while (bit >= 0) {
+		if (divisor < dividend) {
+			word mand = 1ull << 63;
+			word bit_val = 0;
+			BigInteger mulres = divisor << 63ull;
+			while (mand) {
+				if (mulres < dividend) {
+					dividend -= mulres;
+					bit_val += mand;
+				}
+				mand >>= 1;
+				mulres >>= 1;
+			}
+			res.arr[bit] = bit_val;
+		}
+		divisor >>= 64;
+		bit--;
+	}
+	return dividend;
+}
+
+word BigInteger::operator%(word other) const
+{
+	word high = 0;
+	for (index bit = msb - 1; bit >= 0; --bit) {
+		_udiv128(high, this->arr[bit], other, &high);
+	}
+	return high;
 }
 
 BigInteger& BigInteger::operator++()
@@ -190,7 +366,7 @@ BigInteger BigInteger::operator>>(word shift_count) const
 	}
 	shift_count %= 64;
 	word high = 0;
-	for (index bit = msb-1; bit >= 0; bit--) {
+	for (index bit = msb - 1; bit >= 0; bit--) {
 		res.arr[bit] = __shiftright128(this->arr[bit], high, shift_count);
 		high = this->arr[bit];
 	}
@@ -219,7 +395,7 @@ BigInteger& BigInteger::operator<<=(word shift_count)
 BigInteger& BigInteger::operator>>=(word shift_count)
 {
 	if (shift_count > msb * 64) throw std::exception("Shift count too large");
-	for (index bit = msb - 1 - shift_count / 64; bit >=0; --bit) {
+	for (index bit = msb - 1 - shift_count / 64; bit >= 0; --bit) {
 		this->arr[bit] = this->arr[bit + shift_count];
 	}
 	for (index bit = msb - shift_count / 64; bit < msb; ++bit) {
