@@ -1,4 +1,6 @@
 #pragma once
+#include <iostream>
+
 using word = unsigned long long;
 using index = long long;
 
@@ -62,6 +64,8 @@ public:
 	bool operator>=(const BigInteger& other) const;
 	bool operator==(const BigInteger& other) const;
 	bool operator!=(const BigInteger& other) const;
+
+	friend std::ostream& operator<<(std::ostream& os, const BigInteger& ref);
 
 private:
 	word* arr;

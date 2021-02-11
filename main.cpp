@@ -2,7 +2,11 @@
 #include <iostream>
 
 int main() {
-	BigInteger a = -1ull;
-	BigInteger b = -1ull;
+	std::cout << std::hex << std::endl;
+	BigInteger a = -1;
+	BigInteger b = -1;
+	std::cout << a << std::endl;
+	std::cout << b << std::endl;
 	BigInteger c = a * b;
+	std::cout << c << std::endl;
 }

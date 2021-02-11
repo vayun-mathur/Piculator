@@ -135,10 +135,9 @@ DWORD NNT::modsub(DWORD a, DWORD b)
 
 DWORD NNT::modmul(DWORD a, DWORD b)
 {
-    uint64_t _a, _b, _p;
+    uint64_t _a, _b;
     _a = a;
     _b = b;
-    _p = p;
     return (_a * _b) % p;
     /*
     __asm{

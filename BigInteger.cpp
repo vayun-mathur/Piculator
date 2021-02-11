@@ -2,6 +2,7 @@
 #include <intrin.h>
 #include <immintrin.h>
 #include <exception>
+#include <iomanip>
 #include "NNT.h"
 
 BigInteger::BigInteger()
@@ -10,6 +11,7 @@ BigInteger::BigInteger()
 }
 
 BigInteger::BigInteger(word w)
+	: BigInteger()
 {
 	*this = w;
 }
@@ -57,23 +59,23 @@ BigInteger& BigInteger::operator-=(const BigInteger& other)
 	return *this;
 }
 
-void carryTrain(word* arr, index index, word value) {
-	bool carry = _addcarry_u64(0, arr[index], value, arr + index);
+void carryTrain(uint32_t* arr, index index, uint32_t value) {
+	bool carry = _addcarry_u32(0, arr[index], value, arr + index);
 	while (index < msb && carry) {
-		carry = _addcarry_u64(carry, arr[index], 0, arr + index);
+		carry = _addcarry_u32(carry, arr[index], 0, arr + index);
 		++index;
 	}
 }
 
 BigInteger BigInteger::operator*(const BigInteger& other) const
 {
-	int n = 4 * msb;
+	int n = 8 * msb;
 	DWORD* x, * y, * xx, * yy, a;
 	x = new DWORD[n], xx = new DWORD[n];
 	y = new DWORD[n], yy = new DWORD[n];
 	for (int i = 0; i < n; i++) {
-		x[i] = ((uint16_t*)this->arr)[i];
-		y[i] = ((uint16_t*)other.arr)[i];
+		x[i] = ((uint8_t*)this->arr)[i];
+		y[i] = ((uint8_t*)other.arr)[i];
 	}
 	//NTT
 	NNT ntt;
@@ -87,21 +89,18 @@ BigInteger BigInteger::operator*(const BigInteger& other) const
 	ntt.iNTT(yy, xx);
 	BigInteger res = 0;
 	for (index i = 0; i < msb; i++) {
-		//word low = yy[i * 4] + ((word)yy[i * 4 + 1] << 16) + ((word)yy[i * 4 + 2] << 32) + ((word)yy[i * 4 + 3] << 48);
-		word low = 0;
-		word high = 0;
-		for (int k = 0; k < 4; k++) {
-			high += _addcarry_u64(0, low, ((word)yy[i * 4 + k]) << (16 * k), &low);
+		for (int k = 0; k < 8; k++) {
+			carryTrain((uint32_t*)(((uint8_t*)res.arr)+k), 2*i, yy[i * 8 + k]);
 		}
-		high += ((word)yy[i * 4 + 3] >> 16);
-		carryTrain(res.arr, i, low);
-		carryTrain(res.arr, i + 1, high);
 	}
+
 
 	delete[] x;
 	delete[] y;
 	delete[] xx;
 	delete[] yy;
+
+	return res;
 }
 
 BigInteger BigInteger::operator*(word other) const
@@ -273,6 +272,8 @@ BigInteger& BigInteger::operator=(const BigInteger& other)
 	for (index bit = 0; bit < msb; ++bit) {
 		this->arr[bit] = other.arr[bit];
 	}
+
+	return *this;
 }
 
 BigInteger BigInteger::operator&(const BigInteger& other) const
@@ -484,4 +485,22 @@ bool BigInteger::operator!=(const BigInteger& other) const
 		if (this->arr[bit] == other.arr[bit]) return true;
 	}
 	return false;
+}
+
+std::ostream& operator<<(std::ostream& os, const BigInteger& ref)
+{
+	if ((os.flags() & std::ios_base::hex) != 0) { //hex
+		index bit = msb - 1;
+		while (ref.arr[bit] == 0 && bit != 0) bit--;
+		os << "0x";
+		while (bit != 0) {
+			os << std::setw(16) << std::setfill('0') << ref.arr[bit] << " ";
+			bit--;
+		}
+		os << std::setw(16) << std::setfill('0') << ref.arr[bit];
+	}
+	if ((os.flags() & std::ios_base::dec) != 0) { //dec
+
+	}
+	return os;
 }
