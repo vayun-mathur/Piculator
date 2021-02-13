@@ -3,10 +3,8 @@
 #include <immintrin.h>
 #include <exception>
 #include <iomanip>
-#include <boost/multiprecision/cpp_int.hpp>
 #include "NNT.h"
 
-using boost::multiprecision::uint128_t;
 
 BigInteger::BigInteger()
 	: arr(new word[msb])
@@ -93,11 +91,15 @@ BigInteger BigInteger::operator*(const BigInteger& other) const
 	ntt.iNTT(yy, xx);
 	BigInteger res = 0;
 	for (index i = 0; i < msb; i++) {
-		uint128_t v = ((uint128_t)yy[i * 8]) + (((uint128_t)yy[i * 8 + 1]) << 8) + (((uint128_t)yy[i * 8 + 2]) << 16) + (((uint128_t)yy[i * 8 + 3]) << 24)
-			+ ((uint128_t)yy[i * 8 + 4] << 32) + (((uint128_t)yy[i * 8 + 5]) << 40) + (((uint128_t)yy[i * 8 + 6]) << 48) + (((uint128_t)yy[i * 8 + 7]) << 56);
+		word v1 = 0;
+		word v2 = 0;
+		for (int k = 0; k < 8; k++) {
+			v2 += _addcarry_u64(0, v1, ((word)yy[i * 8 + k]) << (k * 8), &v1);
+			v2 += __shiftleft128((word)yy[i * 8 + k], 0, k * 8);
+		}
 
-		carryTrain(res.arr, i, (word)v);
-		carryTrain(res.arr, i + 1, (word)(v >> 64));
+		carryTrain(res.arr, i, v1);
+		carryTrain(res.arr, i + 1, v2);
 	}
 
 
