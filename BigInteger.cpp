@@ -148,7 +148,11 @@ BigInteger BigInteger::operator/(const BigInteger& other) const
 	dividend = *this;
 	divisor = other;
 	BigInteger res = 0;
-	index bit = 0; //TODO DIVIDE HIGHER
+	index bit = 0;
+	while (bit+1 < msb && divisor < dividend) {
+		divisor <<= 64;
+		bit++;
+	}
 	while (bit >= 0) {
 		if (divisor < dividend) {
 			word mand = 1ull << 63;
@@ -204,20 +208,26 @@ BigInteger BigInteger::operator%(const BigInteger& other) const
 	BigInteger divisor;
 	dividend = *this;
 	divisor = other;
-	BigInteger res;
-	index bit = msb - 1;
+	BigInteger res = 0;
+	index bit = 0;
+	while (bit + 1 < msb && divisor < dividend) {
+		divisor <<= 64;
+		bit++;
+	}
 	while (bit >= 0) {
 		if (divisor < dividend) {
 			word mand = 1ull << 63;
+			word shift = 63;
 			word bit_val = 0;
-			BigInteger mulres = divisor << 63ull;
+			BigInteger mulres;
 			while (mand) {
+				mulres = divisor << shift;
 				if (mulres < dividend) {
 					dividend -= mulres;
 					bit_val += mand;
 				}
 				mand >>= 1;
-				mulres >>= 1;
+				shift--;
 			}
 			res.arr[bit] = bit_val;
 		}
@@ -359,8 +369,9 @@ BigInteger BigInteger::operator<<(word shift_count) const
 	shift_count %= 64;
 	word low = 0;
 	for (index bit = 0; bit < msb; bit++) {
-		res.arr[bit] = __shiftleft128(low, this->arr[bit], shift_count);
-		low = this->arr[bit];
+		word curr_bit = res.arr[bit];
+		res.arr[bit] = __shiftleft128(low, curr_bit, shift_count);
+		low = curr_bit;
 	}
 	return res;
 }
@@ -378,8 +389,9 @@ BigInteger BigInteger::operator>>(word shift_count) const
 	shift_count %= 64;
 	word high = 0;
 	for (index bit = msb - 1; bit >= 0; bit--) {
-		res.arr[bit] = __shiftright128(this->arr[bit], high, shift_count);
-		high = this->arr[bit];
+		word curr_bit = res.arr[bit];
+		res.arr[bit] = __shiftright128(curr_bit, high, shift_count);
+		high = curr_bit;
 	}
 	return res;
 }
@@ -406,7 +418,7 @@ BigInteger& BigInteger::operator<<=(word shift_count)
 BigInteger& BigInteger::operator>>=(word shift_count)
 {
 	if (shift_count > msb * 64) throw std::exception("Shift count too large");
-	for (index bit = msb - 1 - shift_count / 64; bit >= 0; --bit) {
+	for (index bit = 0; bit < msb - shift_count / 64; ++bit) {
 		this->arr[bit] = this->arr[bit + shift_count/64];
 	}
 	for (index bit = msb - shift_count / 64; bit < msb; ++bit) {

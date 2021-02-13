@@ -176,6 +176,7 @@ int main() {
 	//BigInteger::lsb = 0;
 	//BigFloat::lsb = lsb;
 	max_b = get<int>("How many iterations?");
+	int digits = get<int>("How many bits of precision to calculate?");
 	std::ofstream outFile(getLine("File to output calculated digits:"));
 
 	timer();
@@ -186,15 +187,15 @@ int main() {
 	nextLine();
 	long long lp = timer();
 	printf("Calculating Q and P of e took %llu ms\n", lp + lq);
-	//std::cout << std::hex;
-	//std::cout << p << std::endl << q << std::endl;
+	std::cout << std::hex;
+	//std::cout << (p << (uint64_t)digits) << std::endl << q << std::endl;
 	//std::cout << toChars(toFloat(q)) << std::endl;
 	//std::cout << toChars(toFloat(p)) << std::endl;
 
-	BigInteger pf = p;
+	BigInteger pf = p << (uint64_t)digits;
 	BigInteger qf = q;
 	BigInteger e = pf / qf;
-	e += 1;
+	e += BigInteger(1)<< (uint64_t)digits;
 	long long le = timer();
 	printf("Final division to calculate e took %llu ms\n", le);
 	
