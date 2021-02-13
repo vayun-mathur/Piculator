@@ -4,7 +4,7 @@
 using word = unsigned long long;
 using index = long long;
 
-const index msb = 1<<8;
+inline index msb = 1<<8;
 
 class BigInteger
 {

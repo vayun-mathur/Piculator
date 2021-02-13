@@ -3,11 +3,15 @@
 #include <immintrin.h>
 #include <exception>
 #include <iomanip>
+#include <boost/multiprecision/cpp_int.hpp>
 #include "NNT.h"
+
+using boost::multiprecision::uint128_t;
 
 BigInteger::BigInteger()
 	: arr(new word[msb])
 {
+	memset(arr, 0, sizeof(word) * msb);
 }
 
 BigInteger::BigInteger(word w)
@@ -59,10 +63,10 @@ BigInteger& BigInteger::operator-=(const BigInteger& other)
 	return *this;
 }
 
-void carryTrain(uint32_t* arr, index index, uint32_t value) {
-	bool carry = _addcarry_u32(0, arr[index], value, arr + index);
+void carryTrain(word* arr, index index, uint64_t value) {
+	bool carry = _addcarry_u64(0, arr[index], value, arr + index);
 	while (index < msb && carry) {
-		carry = _addcarry_u32(carry, arr[index], 0, arr + index);
+		carry = _addcarry_u64(carry, arr[index], 0, arr + index);
 		++index;
 	}
 }
@@ -89,9 +93,11 @@ BigInteger BigInteger::operator*(const BigInteger& other) const
 	ntt.iNTT(yy, xx);
 	BigInteger res = 0;
 	for (index i = 0; i < msb; i++) {
-		for (int k = 0; k < 8; k++) {
-			carryTrain((uint32_t*)(((uint8_t*)res.arr)+k), 2*i, yy[i * 8 + k]);
-		}
+		uint128_t v = ((uint128_t)yy[i * 8]) + (((uint128_t)yy[i * 8 + 1]) << 8) + (((uint128_t)yy[i * 8 + 2]) << 16) + (((uint128_t)yy[i * 8 + 3]) << 24)
+			+ ((uint128_t)yy[i * 8 + 4] << 32) + (((uint128_t)yy[i * 8 + 5]) << 40) + (((uint128_t)yy[i * 8 + 6]) << 48) + (((uint128_t)yy[i * 8 + 7]) << 56);
+
+		carryTrain(res.arr, i, (word)v);
+		carryTrain(res.arr, i + 1, (word)(v >> 64));
 	}
 
 
@@ -139,20 +145,22 @@ BigInteger BigInteger::operator/(const BigInteger& other) const
 	BigInteger divisor;
 	dividend = *this;
 	divisor = other;
-	BigInteger res;
-	index bit = msb-1;
+	BigInteger res = 0;
+	index bit = 0; //TODO DIVIDE HIGHER
 	while (bit >= 0) {
 		if (divisor < dividend) {
 			word mand = 1ull << 63;
+			word shift = 63;
 			word bit_val = 0;
-			BigInteger mulres = divisor << 63ull;
+			BigInteger mulres;
 			while (mand) {
+				mulres = divisor << shift;
 				if (mulres < dividend) {
 					dividend -= mulres;
 					bit_val += mand;
 				}
 				mand >>= 1;
-				mulres >>= 1;
+				shift--;
 			}
 			res.arr[bit] = bit_val;
 		}
@@ -344,7 +352,7 @@ BigInteger BigInteger::operator<<(word shift_count) const
 		res.arr[bit] = 0;
 	}
 	for (index bit = shift_count / 64; bit < msb; ++bit) {
-		res.arr[bit] = this->arr[bit - shift_count];
+		res.arr[bit] = this->arr[bit - shift_count/64];
 	}
 	shift_count %= 64;
 	word low = 0;
@@ -360,7 +368,7 @@ BigInteger BigInteger::operator>>(word shift_count) const
 	if (shift_count > msb * 64) throw std::exception("Shift count too large");
 	BigInteger res;
 	for (index bit = 0; bit < msb - shift_count / 64; ++bit) {
-		res.arr[bit] = this->arr[bit + shift_count];
+		res.arr[bit] = this->arr[bit + shift_count/64];
 	}
 	for (index bit = msb - shift_count / 64; bit < msb; ++bit) {
 		res.arr[bit] = 0;
@@ -378,7 +386,7 @@ BigInteger& BigInteger::operator<<=(word shift_count)
 {
 	if (shift_count > msb * 64) throw std::exception("Shift count too large");
 	for (index bit = msb - 1; bit >= shift_count / 64; --bit) {
-		this->arr[bit] = this->arr[bit - shift_count];
+		this->arr[bit] = this->arr[bit - shift_count/64];
 	}
 	for (index bit = 0; bit < shift_count / 64; ++bit) {
 		this->arr[bit] = 0;
@@ -397,7 +405,7 @@ BigInteger& BigInteger::operator>>=(word shift_count)
 {
 	if (shift_count > msb * 64) throw std::exception("Shift count too large");
 	for (index bit = msb - 1 - shift_count / 64; bit >= 0; --bit) {
-		this->arr[bit] = this->arr[bit + shift_count];
+		this->arr[bit] = this->arr[bit + shift_count/64];
 	}
 	for (index bit = msb - shift_count / 64; bit < msb; ++bit) {
 		this->arr[bit] = 0;
