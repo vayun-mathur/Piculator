@@ -22,7 +22,10 @@ BigInteger Q(int a, int b, bool stack) {
 		return i;
 	}
 	int m = (a + b) / 2;
-	BigInteger r = Q(a, m, false) * Q(m, b, true);
+	BigInteger r1 = Q(a, m, false);
+	BigInteger r2 = Q(m, b, true);
+	BigInteger r = r1 * r2;
+	//std::cout << std::hex << r1 << " * " << r2 << " = " << r << std::endl;
 	if (stack) q_tree.insert({ {a, b}, r });
 	cnt++;
 	printf("Finished %i of %i of Q calculations\r", cnt, max_b - threads);
@@ -74,6 +77,7 @@ BigInteger QMultiThreaded(int a, int b, bool stack, int thread_depth) {
 			cnt++;
 		}
 	}
+	printf("\n");
 
 	return ress.front().second;
 }
@@ -134,6 +138,7 @@ BigInteger PMultiThreaded(int a, int b, int thread_depth) {
 			it->first = { _a, _b };
 		}
 	}
+	printf("\n");
 
 	return ress.front().second;
 }
@@ -158,51 +163,45 @@ std::string getLine(std::string message) {
 	std::getline(std::cin, s);
 	return s;
 }
-void nextLine() {
-	std::cout << std::endl;
+
+uint64_t numBits(word w) {
+	uint64_t res = 0;
+	while (w != 0) {
+		w >>= 1;
+		res++;
+	}
+	return res + 1;
 }
 
 int main() {
-
 	std::ifstream hexEFile("C:\\Users\\Vayun Mathur\\OneDrive\\Documents\\code\\c++\\Math\\Hex Digits.txt");
 	std::stringstream buffer;
-	//buffer << hexEFile.rdbuf();
+	buffer << hexEFile.rdbuf();
 
 	threads = get<int>("How many threads to use? (Choose a power of 2)");
 	index _msb = get<index>("How many 64 bit words to use in BigInteger? (Choose a power of 2)");
-	//index lsb = -get<index>("How many 64 bit decimal words to use in BigInteger? (Choose a power of 2)");
+	index _lsb = -get<index>("How many 64 bit decimal words to use in BigInteger? (Choose a power of 2)");
 	msb = _msb;
-	//BigFloat::msb = msb;
-	//BigInteger::lsb = 0;
-	//BigFloat::lsb = lsb;
+	lsb = _lsb;
 	max_b = get<int>("How many iterations?");
-	int digits = get<int>("How many bits of precision to calculate?");
 	std::ofstream outFile(getLine("File to output calculated digits:"));
 
 	timer();
 	BigInteger q = QMultiThreaded(0, max_b, true, (int)log2(threads));
-	nextLine();
 	long long lq = timer();
 	BigInteger p = PMultiThreaded(0, max_b, (int)log2(threads));
-	nextLine();
 	long long lp = timer();
 	printf("Calculating Q and P of e took %llu ms\n", lp + lq);
-	std::cout << std::hex;
-	//std::cout << (p << (uint64_t)digits) << std::endl << q << std::endl;
-	//std::cout << toChars(toFloat(q)) << std::endl;
-	//std::cout << toChars(toFloat(p)) << std::endl;
 
-	BigInteger pf = p << (uint64_t)digits;
+	BigInteger pf = p;
 	BigInteger qf = q;
 	BigInteger e = pf / qf;
-	e += BigInteger(1)<< (uint64_t)digits;
+	e += 1;
 	long long le = timer();
 	printf("Final division to calculate e took %llu ms\n", le);
-	
+
 	std::stringstream eStringStream;
-	eStringStream << std::hex;
-	eStringStream << e;
-	std::cout << std::hex << e << std::endl;
+	eStringStream << std::hex << e;
 	std::string eString = eStringStream.str();
 	std::string realE = buffer.str();
 	for (int i = 0; i < std::min(eString.size(), realE.size()); i++) {

@@ -7,9 +7,9 @@
 
 
 BigInteger::BigInteger()
-	: arr(new word[msb])
+	: arr(new word[msb-lsb]-lsb)
 {
-	memset(arr, 0, sizeof(word) * msb);
+	memset(arr+lsb, 0, sizeof(word) * (msb-lsb));
 }
 
 BigInteger::BigInteger(word w)
@@ -27,7 +27,7 @@ BigInteger BigInteger::operator+(const BigInteger& other) const
 {
 	BigInteger res;
 	unsigned char carry = 0;
-	for (index bit = 0; bit < msb; ++bit) {
+	for (index bit = lsb; bit < msb; ++bit) {
 		carry = _addcarry_u64(carry, this->arr[bit], other.arr[bit], res.arr + bit);
 	}
 	return res;
@@ -37,7 +37,7 @@ BigInteger BigInteger::operator-(const BigInteger& other) const
 {
 	BigInteger res;
 	unsigned char carry = 0;
-	for (index bit = 0; bit < msb; ++bit) {
+	for (index bit = lsb; bit < msb; ++bit) {
 		carry = _subborrow_u64(carry, this->arr[bit], other.arr[bit], res.arr + bit);
 	}
 	return res;
@@ -46,7 +46,7 @@ BigInteger BigInteger::operator-(const BigInteger& other) const
 BigInteger& BigInteger::operator+=(const BigInteger& other)
 {
 	unsigned char carry = 0;
-	for (index bit = 0; bit < msb; ++bit) {
+	for (index bit = lsb; bit < msb; ++bit) {
 		carry = _addcarry_u64(carry, this->arr[bit], other.arr[bit], this->arr + bit);
 	}
 	return *this;
@@ -55,7 +55,7 @@ BigInteger& BigInteger::operator+=(const BigInteger& other)
 BigInteger& BigInteger::operator-=(const BigInteger& other)
 {
 	unsigned char carry = 0;
-	for (index bit = 0; bit < msb; ++bit) {
+	for (index bit = lsb; bit < msb; ++bit) {
 		carry = _subborrow_u64(carry, this->arr[bit], other.arr[bit], this->arr + bit);
 	}
 	return *this;
@@ -71,13 +71,13 @@ void carryTrain(word* arr, index index, uint64_t value) {
 
 BigInteger BigInteger::operator*(const BigInteger& other) const
 {
-	int n = 8 * msb;
+	int n = 8 * (msb-lsb);
 	DWORD* x, * y, * xx, * yy, a;
 	x = new DWORD[n], xx = new DWORD[n];
 	y = new DWORD[n], yy = new DWORD[n];
 	for (int i = 0; i < n; i++) {
-		x[i] = ((uint8_t*)this->arr)[i];
-		y[i] = ((uint8_t*)other.arr)[i];
+		x[i] = ((uint8_t*)(this->arr+lsb))[i];
+		y[i] = ((uint8_t*)(other.arr + lsb))[i];
 	}
 	//NTT
 	NNT ntt;
@@ -90,7 +90,7 @@ BigInteger BigInteger::operator*(const BigInteger& other) const
 	//INTT
 	ntt.iNTT(yy, xx);
 	BigInteger res = 0;
-	for (index i = 0; i < msb; i++) {
+	for (index i = 0; i < msb-lsb; i++) {
 		word v1 = 0;
 		word v2 = 0;
 		for (int k = 0; k < 8; k++) {
@@ -98,10 +98,10 @@ BigInteger BigInteger::operator*(const BigInteger& other) const
 			v2 += __shiftleft128((word)yy[i * 8 + k], 0, k * 8);
 		}
 
-		carryTrain(res.arr, i, v1);
-		carryTrain(res.arr, i + 1, v2);
+		carryTrain(res.arr, i+lsb, v1);
+		carryTrain(res.arr, i+lsb + 1, v2);
 	}
-
+	res <<= -lsb * 64;
 
 	delete[] x;
 	delete[] y;
@@ -115,7 +115,7 @@ BigInteger BigInteger::operator*(word other) const
 {
 	BigInteger res;
 	word high = 0;
-	for (index bit = 0; bit < msb; ++bit) {
+	for (index bit = lsb; bit < msb; ++bit) {
 		word high_temp;
 		res.arr[bit] = _umul128(this->arr[bit], other, &high_temp);
 		high_temp += _addcarry_u64(0, res.arr[bit], high, res.arr + bit);
@@ -133,14 +133,13 @@ BigInteger& BigInteger::operator*=(const BigInteger& other)
 BigInteger& BigInteger::operator*=(word other)
 {
 	word high = 0;
-	for (index bit = 0; bit < msb; ++bit) {
+	for (index bit = lsb; bit < msb; ++bit) {
 		word high_temp;
 		this->arr[bit] = _umul128(this->arr[bit], other, &high_temp);
 		high_temp += _addcarry_u64(0, this->arr[bit], high, this->arr + bit);
 	}
 	return *this;
 }
-
 BigInteger BigInteger::operator/(const BigInteger& other) const
 {
 	BigInteger dividend;
@@ -153,7 +152,8 @@ BigInteger BigInteger::operator/(const BigInteger& other) const
 		divisor <<= 64;
 		bit++;
 	}
-	while (bit >= 0) {
+	while (bit >= lsb) {
+		//std::cout << divisor << std::endl << dividend << std::endl << std::endl;
 		if (divisor < dividend) {
 			word mand = 1ull << 63;
 			word shift = 63;
@@ -175,12 +175,11 @@ BigInteger BigInteger::operator/(const BigInteger& other) const
 	}
 	return res;
 }
-
 BigInteger BigInteger::operator/(word other) const
 {
 	BigInteger res;
 	word high = 0;
-	for (index bit = msb - 1; bit >= 0; --bit) {
+	for (index bit = msb - 1; bit >= lsb; --bit) {
 		res.arr[bit] = _udiv128(high, this->arr[bit], other, &high);
 	}
 	return res;
@@ -196,7 +195,7 @@ BigInteger& BigInteger::operator/=(const BigInteger& other)
 BigInteger& BigInteger::operator/=(word other)
 {
 	word high = 0;
-	for (index bit = msb - 1; bit >= 0; --bit) {
+	for (index bit = msb - 1; bit >= lsb; --bit) {
 		this->arr[bit] = _udiv128(high, this->arr[bit], other, &high);
 	}
 	return *this;
@@ -214,7 +213,7 @@ BigInteger BigInteger::operator%(const BigInteger& other) const
 		divisor <<= 64;
 		bit++;
 	}
-	while (bit >= 0) {
+	while (bit >= lsb) {
 		if (divisor < dividend) {
 			word mand = 1ull << 63;
 			word shift = 63;
@@ -240,7 +239,7 @@ BigInteger BigInteger::operator%(const BigInteger& other) const
 word BigInteger::operator%(word other) const
 {
 	word high = 0;
-	for (index bit = msb - 1; bit >= 0; --bit) {
+	for (index bit = msb - 1; bit >= lsb; --bit) {
 		_udiv128(high, this->arr[bit], other, &high);
 	}
 	return high;
@@ -280,7 +279,7 @@ BigInteger BigInteger::operator--(int)
 
 BigInteger& BigInteger::operator=(word w)
 {
-	for (index bit = 1; bit < msb; ++bit) {
+	for (index bit = lsb; bit < msb; ++bit) {
 		this->arr[bit] = 0;
 	}
 	this->arr[0] = w;
@@ -289,7 +288,7 @@ BigInteger& BigInteger::operator=(word w)
 
 BigInteger& BigInteger::operator=(const BigInteger& other)
 {
-	for (index bit = 0; bit < msb; ++bit) {
+	for (index bit = lsb; bit < msb; ++bit) {
 		this->arr[bit] = other.arr[bit];
 	}
 
@@ -299,7 +298,7 @@ BigInteger& BigInteger::operator=(const BigInteger& other)
 BigInteger BigInteger::operator&(const BigInteger& other) const
 {
 	BigInteger res;
-	for (index bit = 0; bit < msb; ++bit) {
+	for (index bit = lsb; bit < msb; ++bit) {
 		res.arr[bit] = this->arr[bit] & other.arr[bit];
 	}
 	return res;
@@ -308,7 +307,7 @@ BigInteger BigInteger::operator&(const BigInteger& other) const
 BigInteger BigInteger::operator|(const BigInteger& other) const
 {
 	BigInteger res;
-	for (index bit = 0; bit < msb; ++bit) {
+	for (index bit = lsb; bit < msb; ++bit) {
 		res.arr[bit] = this->arr[bit] | other.arr[bit];
 	}
 	return res;
@@ -317,7 +316,7 @@ BigInteger BigInteger::operator|(const BigInteger& other) const
 BigInteger BigInteger::operator^(const BigInteger& other) const
 {
 	BigInteger res;
-	for (index bit = 0; bit < msb; ++bit) {
+	for (index bit = lsb; bit < msb; ++bit) {
 		res.arr[bit] = this->arr[bit] ^ other.arr[bit];
 	}
 	return res;
@@ -325,7 +324,7 @@ BigInteger BigInteger::operator^(const BigInteger& other) const
 
 BigInteger& BigInteger::operator&=(const BigInteger& other)
 {
-	for (index bit = 0; bit < msb; ++bit) {
+	for (index bit = lsb; bit < msb; ++bit) {
 		this->arr[bit] &= other.arr[bit];
 	}
 	return *this;
@@ -333,7 +332,7 @@ BigInteger& BigInteger::operator&=(const BigInteger& other)
 
 BigInteger& BigInteger::operator|=(const BigInteger& other)
 {
-	for (index bit = 0; bit < msb; ++bit) {
+	for (index bit = lsb; bit < msb; ++bit) {
 		this->arr[bit] |= other.arr[bit];
 	}
 	return *this;
@@ -341,7 +340,7 @@ BigInteger& BigInteger::operator|=(const BigInteger& other)
 
 BigInteger& BigInteger::operator^=(const BigInteger& other)
 {
-	for (index bit = 0; bit < msb; ++bit) {
+	for (index bit = lsb; bit < msb; ++bit) {
 		this->arr[bit] ^= other.arr[bit];
 	}
 	return *this;
@@ -350,7 +349,7 @@ BigInteger& BigInteger::operator^=(const BigInteger& other)
 BigInteger BigInteger::operator~() const
 {
 	BigInteger res;
-	for (index bit = 0; bit < msb; ++bit) {
+	for (index bit = lsb; bit < msb; ++bit) {
 		res.arr[bit] = ~this->arr[bit];
 	}
 	return res;
@@ -358,17 +357,17 @@ BigInteger BigInteger::operator~() const
 
 BigInteger BigInteger::operator<<(word shift_count) const
 {
-	if (shift_count > msb * 64) throw std::exception("Shift count too large");
+	if (shift_count > (msb - lsb) * 64) throw std::exception("Shift count too large");
 	BigInteger res;
-	for (index bit = 0; bit < shift_count / 64; ++bit) {
+	for (index bit = lsb; bit < lsb + shift_count / 64; ++bit) {
 		res.arr[bit] = 0;
 	}
-	for (index bit = shift_count / 64; bit < msb; ++bit) {
+	for (index bit = lsb + shift_count / 64; bit < msb; ++bit) {
 		res.arr[bit] = this->arr[bit - shift_count/64];
 	}
 	shift_count %= 64;
 	word low = 0;
-	for (index bit = 0; bit < msb; bit++) {
+	for (index bit = lsb; bit < msb; bit++) {
 		word curr_bit = res.arr[bit];
 		res.arr[bit] = __shiftleft128(low, curr_bit, shift_count);
 		low = curr_bit;
@@ -378,9 +377,9 @@ BigInteger BigInteger::operator<<(word shift_count) const
 
 BigInteger BigInteger::operator>>(word shift_count) const
 {
-	if (shift_count > msb * 64) throw std::exception("Shift count too large");
+	if (shift_count > (msb - lsb) * 64) throw std::exception("Shift count too large");
 	BigInteger res;
-	for (index bit = 0; bit < msb - shift_count / 64; ++bit) {
+	for (index bit = lsb; bit < msb - shift_count / 64; ++bit) {
 		res.arr[bit] = this->arr[bit + shift_count/64];
 	}
 	for (index bit = msb - shift_count / 64; bit < msb; ++bit) {
@@ -388,7 +387,7 @@ BigInteger BigInteger::operator>>(word shift_count) const
 	}
 	shift_count %= 64;
 	word high = 0;
-	for (index bit = msb - 1; bit >= 0; bit--) {
+	for (index bit = msb - 1; bit >= lsb; bit--) {
 		word curr_bit = res.arr[bit];
 		res.arr[bit] = __shiftright128(curr_bit, high, shift_count);
 		high = curr_bit;
@@ -398,16 +397,16 @@ BigInteger BigInteger::operator>>(word shift_count) const
 
 BigInteger& BigInteger::operator<<=(word shift_count)
 {
-	if (shift_count > msb * 64) throw std::exception("Shift count too large");
-	for (index bit = msb - 1; bit >= shift_count / 64; --bit) {
+	if (shift_count > (msb - lsb) * 64) throw std::exception("Shift count too large");
+	for (index bit = msb - 1; bit >= lsb + (index)(shift_count / 64); --bit) {
 		this->arr[bit] = this->arr[bit - shift_count/64];
 	}
-	for (index bit = 0; bit < shift_count / 64; ++bit) {
+	for (index bit = lsb; bit < lsb + (index)(shift_count / 64); ++bit) {
 		this->arr[bit] = 0;
 	}
 	shift_count %= 64;
 	word low = 0;
-	for (index bit = 0; bit < msb; bit++) {
+	for (index bit = lsb; bit < msb; bit++) {
 		word curr_bit = this->arr[bit];
 		this->arr[bit] = __shiftleft128(low, curr_bit, shift_count);
 		low = curr_bit;
@@ -417,16 +416,16 @@ BigInteger& BigInteger::operator<<=(word shift_count)
 
 BigInteger& BigInteger::operator>>=(word shift_count)
 {
-	if (shift_count > msb * 64) throw std::exception("Shift count too large");
-	for (index bit = 0; bit < msb - shift_count / 64; ++bit) {
-		this->arr[bit] = this->arr[bit + shift_count/64];
+	if (shift_count > (msb-lsb) * 64) throw std::exception("Shift count too large");
+	for (index bit = lsb; bit < msb - (index)(shift_count / 64); ++bit) {
+		this->arr[bit] = this->arr[bit + (index)(shift_count / 64)];
 	}
-	for (index bit = msb - shift_count / 64; bit < msb; ++bit) {
+	for (index bit = msb - (index)(shift_count / 64); bit < msb; ++bit) {
 		this->arr[bit] = 0;
 	}
 	shift_count %= 64;
 	word high = 0;
-	for (index bit = msb - 1; bit >= 0; bit--) {
+	for (index bit = msb - 1; bit >= lsb; bit--) {
 		word curr_bit = this->arr[bit];
 		this->arr[bit] = __shiftright128(curr_bit, high, shift_count);
 		high = curr_bit;
@@ -451,7 +450,7 @@ bool BigInteger::operator!() const
 
 BigInteger::operator bool() const
 {
-	for (index bit = msb - 1; bit >= 0; --bit) {
+	for (index bit = msb - 1; bit >= lsb; --bit) {
 		if (this->arr[bit] != 0) return true;
 	}
 	return false;
@@ -459,7 +458,7 @@ BigInteger::operator bool() const
 
 bool BigInteger::operator<(const BigInteger& other) const
 {
-	for (index bit = msb - 1; bit >= 0; --bit) {
+	for (index bit = msb - 1; bit >= lsb; --bit) {
 		if (this->arr[bit] < other.arr[bit]) return true;
 		if (this->arr[bit] > other.arr[bit]) return false;
 	}
@@ -468,7 +467,7 @@ bool BigInteger::operator<(const BigInteger& other) const
 
 bool BigInteger::operator>(const BigInteger& other) const
 {
-	for (index bit = msb - 1; bit >= 0; --bit) {
+	for (index bit = msb - 1; bit >= lsb; --bit) {
 		if (this->arr[bit] < other.arr[bit]) return false;
 		if (this->arr[bit] > other.arr[bit]) return true;
 	}
@@ -477,7 +476,7 @@ bool BigInteger::operator>(const BigInteger& other) const
 
 bool BigInteger::operator<=(const BigInteger& other) const
 {
-	for (index bit = msb - 1; bit >= 0; --bit) {
+	for (index bit = msb - 1; bit >= lsb; --bit) {
 		if (this->arr[bit] < other.arr[bit]) return true;
 		if (this->arr[bit] > other.arr[bit]) return false;
 	}
@@ -486,7 +485,7 @@ bool BigInteger::operator<=(const BigInteger& other) const
 
 bool BigInteger::operator>=(const BigInteger& other) const
 {
-	for (index bit = msb - 1; bit >= 0; --bit) {
+	for (index bit = msb - 1; bit >= lsb; --bit) {
 		if (this->arr[bit] < other.arr[bit]) return false;
 		if (this->arr[bit] > other.arr[bit]) return true;
 	}
@@ -495,7 +494,7 @@ bool BigInteger::operator>=(const BigInteger& other) const
 
 bool BigInteger::operator==(const BigInteger& other) const
 {
-	for (index bit = msb - 1; bit >= 0; --bit) {
+	for (index bit = msb - 1; bit >= lsb; --bit) {
 		if (this->arr[bit] != other.arr[bit]) return false;
 	}
 	return true;
@@ -503,7 +502,7 @@ bool BigInteger::operator==(const BigInteger& other) const
 
 bool BigInteger::operator!=(const BigInteger& other) const
 {
-	for (index bit = msb - 1; bit >= 0; --bit) {
+	for (index bit = msb - 1; bit >= lsb; --bit) {
 		if (this->arr[bit] == other.arr[bit]) return true;
 	}
 	return false;
@@ -512,14 +511,17 @@ bool BigInteger::operator!=(const BigInteger& other) const
 std::ostream& operator<<(std::ostream& os, const BigInteger& ref)
 {
 	if ((os.flags() & std::ios_base::hex) != 0) { //hex
+		index low = lsb;
+		while (ref.arr[low] == 0 && low != 0) low++;
 		index bit = msb - 1;
 		while (ref.arr[bit] == 0 && bit != 0) bit--;
 		os << "0x";
-		while (bit != 0) {
-			os << std::setw(16) << std::setfill('0') << ref.arr[bit] << " ";
+		os << ref.arr[bit];
+		while (bit != low) {
+			os << (bit == 0 ? "." : " ");
 			bit--;
+			os << std::setw(16) << std::setfill('0') << ref.arr[bit];
 		}
-		os << std::setw(16) << std::setfill('0') << ref.arr[bit];
 	}
 	if ((os.flags() & std::ios_base::dec) != 0) { //dec
 
