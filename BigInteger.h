@@ -1,73 +1,35 @@
 #pragma once
-#include <iostream>
-
-using word = unsigned long long;
-using index = long long;
-
-inline index msb = 1 << 8;
-inline index lsb = -(1 << 8);
-
+#include "BigNum.h"
+inline index int_msb;
+inline index int_lsb;
 class BigInteger
+	: public BigNum
 {
 public:
-	BigInteger();
-	BigInteger(word w);
-	BigInteger(const BigInteger& other);
+	BigInteger() : BigNum(int_msb, int_lsb) {
 
-	BigInteger operator+(const BigInteger& other) const;
-	BigInteger operator-(const BigInteger& other) const;
-	BigInteger& operator+=(const BigInteger& other);
-	BigInteger& operator-=(const BigInteger& other);
+	}
+	BigInteger(word w) : BigNum(w, int_msb, int_lsb) {
 
-	BigInteger operator*(const BigInteger& other) const;
-	BigInteger operator*(word other) const;
-	BigInteger& operator*=(const BigInteger& other);
-	BigInteger& operator*=(word other);
+	}
+	BigInteger(const BigNum& other) : BigNum(other, int_msb, int_lsb) {
 
-	BigInteger operator/(const BigInteger& other) const;
-	BigInteger operator/(word other) const;
-	BigInteger& operator/=(const BigInteger& other);
-	BigInteger& operator/=(word other);
+	}
+};
 
-	BigInteger operator%(const BigInteger& other) const;
-	word operator%(word other) const;
+inline index float_msb;
+inline index float_lsb;
+class BigFloat
+	: public BigNum
+{
+public:
+	BigFloat() : BigNum(float_msb, float_lsb) {
 
-	BigInteger& operator++(); //prefix
-	BigInteger operator++(int); //postfix
-	BigInteger& operator--(); //prefix
-	BigInteger operator--(int); //postfix
+	}
+	BigFloat(word w) : BigNum(w, float_msb, float_lsb) {
 
-	BigInteger& operator=(word w);
-	BigInteger& operator=(const BigInteger& other);
+	}
+	BigFloat(const BigNum& other) : BigNum(other, float_msb, float_lsb) {
 
-	BigInteger operator&(const BigInteger& other) const;
-	BigInteger operator|(const BigInteger& other) const;
-	BigInteger operator^(const BigInteger& other) const;
-	BigInteger& operator&=(const BigInteger& other);
-	BigInteger& operator|=(const BigInteger& other);
-	BigInteger& operator^=(const BigInteger& other);
-	BigInteger operator~() const;
-
-	BigInteger operator<<(word shift_count) const;
-	BigInteger operator>>(word shift_count) const;
-	BigInteger& operator<<=(word shift_count);
-	BigInteger& operator>>=(word shift_count);
-
-	bool operator&&(const BigInteger& other) const;
-	bool operator||(const BigInteger& other) const;
-	bool operator!() const;
-
-	operator bool() const;
-
-	bool operator<(const BigInteger& other) const;
-	bool operator>(const BigInteger& other) const;
-	bool operator<=(const BigInteger& other) const;
-	bool operator>=(const BigInteger& other) const;
-	bool operator==(const BigInteger& other) const;
-	bool operator!=(const BigInteger& other) const;
-
-	friend std::ostream& operator<<(std::ostream& os, const BigInteger& ref);
-
-private:
-	word* arr;
+	}
 };

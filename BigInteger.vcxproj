@@ -142,10 +142,11 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClInclude Include="BigInteger.h" />
+    <ClInclude Include="BigNum.h" />
     <ClInclude Include="NNT.h" />
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="BigInteger.cpp" />
+    <ClCompile Include="BigNum.cpp" />
     <ClCompile Include="main.cpp" />
     <ClCompile Include="NNT.cpp" />
   </ItemGroup>

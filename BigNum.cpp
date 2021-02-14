@@ -1,31 +1,33 @@
-#include "BigInteger.h"
+#include "BigNum.h"
 #include <intrin.h>
 #include <immintrin.h>
 #include <exception>
 #include <iomanip>
 #include "NNT.h"
 
+//TODO: ADD NUMBERS OF DIFFERENT SIZES
 
-BigInteger::BigInteger()
-	: arr(new word[msb-lsb]-lsb)
+BigNum::BigNum(index msb, index lsb)
+	: msb(msb), lsb(lsb), arr(new word[msb-lsb]-lsb)
 {
 	memset(arr+lsb, 0, sizeof(word) * (msb-lsb));
 }
 
-BigInteger::BigInteger(word w)
-	: BigInteger()
+BigNum::BigNum(word w, index msb, index lsb)
+	: BigNum(msb, lsb)
 {
 	*this = w;
 }
 
-BigInteger::BigInteger(const BigInteger& other)
-	: arr(other.arr)
+BigNum::BigNum(const BigNum& other, index msb, index lsb)
+	: BigNum(msb, lsb)
 {
+	*this = other;
 }
 
-BigInteger BigInteger::operator+(const BigInteger& other) const
+BigNum BigNum::operator+(const BigNum& other) const
 {
-	BigInteger res;
+	BigNum res(msb, lsb);
 	unsigned char carry = 0;
 	for (index bit = lsb; bit < msb; ++bit) {
 		carry = _addcarry_u64(carry, this->arr[bit], other.arr[bit], res.arr + bit);
@@ -33,9 +35,9 @@ BigInteger BigInteger::operator+(const BigInteger& other) const
 	return res;
 }
 
-BigInteger BigInteger::operator-(const BigInteger& other) const
+BigNum BigNum::operator-(const BigNum& other) const
 {
-	BigInteger res;
+	BigNum res(msb, lsb);
 	unsigned char carry = 0;
 	for (index bit = lsb; bit < msb; ++bit) {
 		carry = _subborrow_u64(carry, this->arr[bit], other.arr[bit], res.arr + bit);
@@ -43,7 +45,7 @@ BigInteger BigInteger::operator-(const BigInteger& other) const
 	return res;
 }
 
-BigInteger& BigInteger::operator+=(const BigInteger& other)
+BigNum& BigNum::operator+=(const BigNum& other)
 {
 	unsigned char carry = 0;
 	for (index bit = lsb; bit < msb; ++bit) {
@@ -52,7 +54,7 @@ BigInteger& BigInteger::operator+=(const BigInteger& other)
 	return *this;
 }
 
-BigInteger& BigInteger::operator-=(const BigInteger& other)
+BigNum& BigNum::operator-=(const BigNum& other)
 {
 	unsigned char carry = 0;
 	for (index bit = lsb; bit < msb; ++bit) {
@@ -61,7 +63,7 @@ BigInteger& BigInteger::operator-=(const BigInteger& other)
 	return *this;
 }
 
-void carryTrain(word* arr, index index, uint64_t value) {
+void carryTrain(word* arr, index msb, index index, uint64_t value) {
 	bool carry = _addcarry_u64(0, arr[index], value, arr + index);
 	while (index < msb && carry) {
 		carry = _addcarry_u64(carry, arr[index], 0, arr + index);
@@ -69,7 +71,7 @@ void carryTrain(word* arr, index index, uint64_t value) {
 	}
 }
 
-BigInteger BigInteger::operator*(const BigInteger& other) const
+BigNum BigNum::operator*(const BigNum& other) const
 {
 	int n = 8 * (msb-lsb);
 	DWORD* x, * y, * xx, * yy, a;
@@ -89,7 +91,8 @@ BigInteger BigInteger::operator*(const BigInteger& other) const
 
 	//INTT
 	ntt.iNTT(yy, xx);
-	BigInteger res = 0;
+	BigNum res(msb, lsb);
+	res = 0;
 	for (index i = 0; i < msb-lsb; i++) {
 		word v1 = 0;
 		word v2 = 0;
@@ -98,8 +101,8 @@ BigInteger BigInteger::operator*(const BigInteger& other) const
 			v2 += __shiftleft128((word)yy[i * 8 + k], 0, k * 8);
 		}
 
-		carryTrain(res.arr, i+lsb, v1);
-		carryTrain(res.arr, i+lsb + 1, v2);
+		carryTrain(res.arr, msb, i+lsb, v1);
+		carryTrain(res.arr, msb, i+lsb + 1, v2);
 	}
 	res <<= -lsb * 64;
 
@@ -111,9 +114,9 @@ BigInteger BigInteger::operator*(const BigInteger& other) const
 	return res;
 }
 
-BigInteger BigInteger::operator*(word other) const
+BigNum BigNum::operator*(word other) const
 {
-	BigInteger res;
+	BigNum res(msb, lsb);
 	word high = 0;
 	for (index bit = lsb; bit < msb; ++bit) {
 		word high_temp;
@@ -123,14 +126,14 @@ BigInteger BigInteger::operator*(word other) const
 	return res;
 }
 
-BigInteger& BigInteger::operator*=(const BigInteger& other)
+BigNum& BigNum::operator*=(const BigNum& other)
 {
-	BigInteger& _this = *this;
+	BigNum& _this = *this;
 	_this = _this * other;
 	return _this;
 }
 
-BigInteger& BigInteger::operator*=(word other)
+BigNum& BigNum::operator*=(word other)
 {
 	word high = 0;
 	for (index bit = lsb; bit < msb; ++bit) {
@@ -140,13 +143,14 @@ BigInteger& BigInteger::operator*=(word other)
 	}
 	return *this;
 }
-BigInteger BigInteger::operator/(const BigInteger& other) const
+BigNum BigNum::operator/(const BigNum& other) const
 {
-	BigInteger dividend;
-	BigInteger divisor;
+	BigNum dividend(msb, lsb);
+	BigNum divisor(msb, lsb);
 	dividend = *this;
 	divisor = other;
-	BigInteger res = 0;
+	BigNum res(msb, lsb);
+	res = 0;
 	index bit = 0;
 	while (bit+1 < msb && divisor < dividend) {
 		divisor <<= 64;
@@ -158,7 +162,7 @@ BigInteger BigInteger::operator/(const BigInteger& other) const
 			word mand = 1ull << 63;
 			word shift = 63;
 			word bit_val = 0;
-			BigInteger mulres;
+			BigNum mulres(msb, lsb);
 			while (mand) {
 				mulres = divisor << shift;
 				if (mulres < dividend) {
@@ -175,9 +179,9 @@ BigInteger BigInteger::operator/(const BigInteger& other) const
 	}
 	return res;
 }
-BigInteger BigInteger::operator/(word other) const
+BigNum BigNum::operator/(word other) const
 {
-	BigInteger res;
+	BigNum res(msb, lsb);
 	word high = 0;
 	for (index bit = msb - 1; bit >= lsb; --bit) {
 		res.arr[bit] = _udiv128(high, this->arr[bit], other, &high);
@@ -185,14 +189,14 @@ BigInteger BigInteger::operator/(word other) const
 	return res;
 }
 
-BigInteger& BigInteger::operator/=(const BigInteger& other)
+BigNum& BigNum::operator/=(const BigNum& other)
 {
-	BigInteger& _this = *this;
+	BigNum& _this = *this;
 	_this = _this / other;
 	return _this;
 }
 
-BigInteger& BigInteger::operator/=(word other)
+BigNum& BigNum::operator/=(word other)
 {
 	word high = 0;
 	for (index bit = msb - 1; bit >= lsb; --bit) {
@@ -201,13 +205,14 @@ BigInteger& BigInteger::operator/=(word other)
 	return *this;
 }
 
-BigInteger BigInteger::operator%(const BigInteger& other) const
+BigNum BigNum::operator%(const BigNum& other) const
 {
-	BigInteger dividend;
-	BigInteger divisor;
+	BigNum dividend(msb, lsb);
+	BigNum divisor(msb, lsb);
 	dividend = *this;
 	divisor = other;
-	BigInteger res = 0;
+	BigNum res(msb, lsb);
+	res = 0;
 	index bit = 0;
 	while (bit + 1 < msb && divisor < dividend) {
 		divisor <<= 64;
@@ -218,7 +223,7 @@ BigInteger BigInteger::operator%(const BigInteger& other) const
 			word mand = 1ull << 63;
 			word shift = 63;
 			word bit_val = 0;
-			BigInteger mulres;
+			BigNum mulres(msb, lsb);
 			while (mand) {
 				mulres = divisor << shift;
 				if (mulres < dividend) {
@@ -236,7 +241,7 @@ BigInteger BigInteger::operator%(const BigInteger& other) const
 	return dividend;
 }
 
-word BigInteger::operator%(word other) const
+word BigNum::operator%(word other) const
 {
 	word high = 0;
 	for (index bit = msb - 1; bit >= lsb; --bit) {
@@ -245,7 +250,7 @@ word BigInteger::operator%(word other) const
 	return high;
 }
 
-BigInteger& BigInteger::operator++()
+BigNum& BigNum::operator++()
 {
 	unsigned char carry = 1;
 	for (index bit = 0; bit < msb && carry; ++bit) {
@@ -254,14 +259,14 @@ BigInteger& BigInteger::operator++()
 	return *this;
 }
 
-BigInteger BigInteger::operator++(int)
+BigNum BigNum::operator++(int)
 {
-	BigInteger old = *this;
+	BigNum old = *this;
 	operator++();
 	return old;
 }
 
-BigInteger& BigInteger::operator--()
+BigNum& BigNum::operator--()
 {
 	unsigned char carry = 1;
 	for (index bit = 0; bit < msb && carry; ++bit) {
@@ -270,14 +275,14 @@ BigInteger& BigInteger::operator--()
 	return *this;
 }
 
-BigInteger BigInteger::operator--(int)
+BigNum BigNum::operator--(int)
 {
-	BigInteger old = *this;
+	BigNum old = *this;
 	operator--();
 	return old;
 }
 
-BigInteger& BigInteger::operator=(word w)
+BigNum& BigNum::operator=(word w)
 {
 	for (index bit = lsb; bit < msb; ++bit) {
 		this->arr[bit] = 0;
@@ -286,43 +291,45 @@ BigInteger& BigInteger::operator=(word w)
 	return *this;
 }
 
-BigInteger& BigInteger::operator=(const BigInteger& other)
+BigNum& BigNum::operator=(const BigNum& other)
 {
-	for (index bit = lsb; bit < msb; ++bit) {
+	for (index bit = lsb; bit < other.lsb; bit++) this->arr[bit] = 0;
+	for (index bit = std::max(other.lsb, lsb); bit < std::min(other.msb, msb); ++bit) {
 		this->arr[bit] = other.arr[bit];
 	}
+	for (index bit = other.msb; bit < msb; bit++) this->arr[bit] = 0;
 
 	return *this;
 }
 
-BigInteger BigInteger::operator&(const BigInteger& other) const
+BigNum BigNum::operator&(const BigNum& other) const
 {
-	BigInteger res;
+	BigNum res(msb, lsb);
 	for (index bit = lsb; bit < msb; ++bit) {
 		res.arr[bit] = this->arr[bit] & other.arr[bit];
 	}
 	return res;
 }
 
-BigInteger BigInteger::operator|(const BigInteger& other) const
+BigNum BigNum::operator|(const BigNum& other) const
 {
-	BigInteger res;
+	BigNum res(msb, lsb);
 	for (index bit = lsb; bit < msb; ++bit) {
 		res.arr[bit] = this->arr[bit] | other.arr[bit];
 	}
 	return res;
 }
 
-BigInteger BigInteger::operator^(const BigInteger& other) const
+BigNum BigNum::operator^(const BigNum& other) const
 {
-	BigInteger res;
+	BigNum res(msb, lsb);
 	for (index bit = lsb; bit < msb; ++bit) {
 		res.arr[bit] = this->arr[bit] ^ other.arr[bit];
 	}
 	return res;
 }
 
-BigInteger& BigInteger::operator&=(const BigInteger& other)
+BigNum& BigNum::operator&=(const BigNum& other)
 {
 	for (index bit = lsb; bit < msb; ++bit) {
 		this->arr[bit] &= other.arr[bit];
@@ -330,7 +337,7 @@ BigInteger& BigInteger::operator&=(const BigInteger& other)
 	return *this;
 }
 
-BigInteger& BigInteger::operator|=(const BigInteger& other)
+BigNum& BigNum::operator|=(const BigNum& other)
 {
 	for (index bit = lsb; bit < msb; ++bit) {
 		this->arr[bit] |= other.arr[bit];
@@ -338,7 +345,7 @@ BigInteger& BigInteger::operator|=(const BigInteger& other)
 	return *this;
 }
 
-BigInteger& BigInteger::operator^=(const BigInteger& other)
+BigNum& BigNum::operator^=(const BigNum& other)
 {
 	for (index bit = lsb; bit < msb; ++bit) {
 		this->arr[bit] ^= other.arr[bit];
@@ -346,19 +353,19 @@ BigInteger& BigInteger::operator^=(const BigInteger& other)
 	return *this;
 }
 
-BigInteger BigInteger::operator~() const
+BigNum BigNum::operator~() const
 {
-	BigInteger res;
+	BigNum res(msb, lsb);
 	for (index bit = lsb; bit < msb; ++bit) {
 		res.arr[bit] = ~this->arr[bit];
 	}
 	return res;
 }
 
-BigInteger BigInteger::operator<<(word shift_count) const
+BigNum BigNum::operator<<(word shift_count) const
 {
 	if (shift_count > (msb - lsb) * 64) throw std::exception("Shift count too large");
-	BigInteger res;
+	BigNum res(msb, lsb);
 	for (index bit = lsb; bit < lsb + shift_count / 64; ++bit) {
 		res.arr[bit] = 0;
 	}
@@ -375,10 +382,10 @@ BigInteger BigInteger::operator<<(word shift_count) const
 	return res;
 }
 
-BigInteger BigInteger::operator>>(word shift_count) const
+BigNum BigNum::operator>>(word shift_count) const
 {
 	if (shift_count > (msb - lsb) * 64) throw std::exception("Shift count too large");
-	BigInteger res;
+	BigNum res(msb, lsb);
 	for (index bit = lsb; bit < msb - shift_count / 64; ++bit) {
 		res.arr[bit] = this->arr[bit + shift_count/64];
 	}
@@ -395,7 +402,7 @@ BigInteger BigInteger::operator>>(word shift_count) const
 	return res;
 }
 
-BigInteger& BigInteger::operator<<=(word shift_count)
+BigNum& BigNum::operator<<=(word shift_count)
 {
 	if (shift_count > (msb - lsb) * 64) throw std::exception("Shift count too large");
 	for (index bit = msb - 1; bit >= lsb + (index)(shift_count / 64); --bit) {
@@ -414,7 +421,7 @@ BigInteger& BigInteger::operator<<=(word shift_count)
 	return *this;
 }
 
-BigInteger& BigInteger::operator>>=(word shift_count)
+BigNum& BigNum::operator>>=(word shift_count)
 {
 	if (shift_count > (msb-lsb) * 64) throw std::exception("Shift count too large");
 	for (index bit = lsb; bit < msb - (index)(shift_count / 64); ++bit) {
@@ -433,22 +440,22 @@ BigInteger& BigInteger::operator>>=(word shift_count)
 	return *this;
 }
 
-bool BigInteger::operator&&(const BigInteger& other) const
+bool BigNum::operator&&(const BigNum& other) const
 {
 	return bool(*this) && bool(other);
 }
 
-bool BigInteger::operator||(const BigInteger& other) const
+bool BigNum::operator||(const BigNum& other) const
 {
 	return bool(*this) || bool(other);
 }
 
-bool BigInteger::operator!() const
+bool BigNum::operator!() const
 {
 	return !bool(*this);
 }
 
-BigInteger::operator bool() const
+BigNum::operator bool() const
 {
 	for (index bit = msb - 1; bit >= lsb; --bit) {
 		if (this->arr[bit] != 0) return true;
@@ -456,7 +463,7 @@ BigInteger::operator bool() const
 	return false;
 }
 
-bool BigInteger::operator<(const BigInteger& other) const
+bool BigNum::operator<(const BigNum& other) const
 {
 	for (index bit = msb - 1; bit >= lsb; --bit) {
 		if (this->arr[bit] < other.arr[bit]) return true;
@@ -465,7 +472,7 @@ bool BigInteger::operator<(const BigInteger& other) const
 	return false;
 }
 
-bool BigInteger::operator>(const BigInteger& other) const
+bool BigNum::operator>(const BigNum& other) const
 {
 	for (index bit = msb - 1; bit >= lsb; --bit) {
 		if (this->arr[bit] < other.arr[bit]) return false;
@@ -474,7 +481,7 @@ bool BigInteger::operator>(const BigInteger& other) const
 	return false;
 }
 
-bool BigInteger::operator<=(const BigInteger& other) const
+bool BigNum::operator<=(const BigNum& other) const
 {
 	for (index bit = msb - 1; bit >= lsb; --bit) {
 		if (this->arr[bit] < other.arr[bit]) return true;
@@ -483,7 +490,7 @@ bool BigInteger::operator<=(const BigInteger& other) const
 	return true;
 }
 
-bool BigInteger::operator>=(const BigInteger& other) const
+bool BigNum::operator>=(const BigNum& other) const
 {
 	for (index bit = msb - 1; bit >= lsb; --bit) {
 		if (this->arr[bit] < other.arr[bit]) return false;
@@ -492,7 +499,7 @@ bool BigInteger::operator>=(const BigInteger& other) const
 	return true;
 }
 
-bool BigInteger::operator==(const BigInteger& other) const
+bool BigNum::operator==(const BigNum& other) const
 {
 	for (index bit = msb - 1; bit >= lsb; --bit) {
 		if (this->arr[bit] != other.arr[bit]) return false;
@@ -500,7 +507,7 @@ bool BigInteger::operator==(const BigInteger& other) const
 	return true;
 }
 
-bool BigInteger::operator!=(const BigInteger& other) const
+bool BigNum::operator!=(const BigNum& other) const
 {
 	for (index bit = msb - 1; bit >= lsb; --bit) {
 		if (this->arr[bit] == other.arr[bit]) return true;
@@ -508,12 +515,12 @@ bool BigInteger::operator!=(const BigInteger& other) const
 	return false;
 }
 
-std::ostream& operator<<(std::ostream& os, const BigInteger& ref)
+std::ostream& operator<<(std::ostream& os, const BigNum& ref)
 {
 	if ((os.flags() & std::ios_base::hex) != 0) { //hex
-		index low = lsb;
+		index low = ref.lsb;
 		while (ref.arr[low] == 0 && low != 0) low++;
-		index bit = msb - 1;
+		index bit = ref.msb - 1;
 		while (ref.arr[bit] == 0 && bit != 0) bit--;
 		os << "0x";
 		os << ref.arr[bit];

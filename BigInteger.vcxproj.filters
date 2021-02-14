@@ -15,21 +15,24 @@
     </Filter>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="BigInteger.h">
+    <ClInclude Include="NNT.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="NNT.h">
+    <ClInclude Include="BigNum.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="BigInteger.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="BigInteger.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
     <ClCompile Include="NNT.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="main.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="BigNum.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>

@@ -16,8 +16,7 @@ int threads = 8;
 BigInteger Q(int a, int b, bool stack) {
 	static int cnt = 0;
 	if (a == b - 1) {
-		BigInteger i;
-		i = b;
+		BigInteger i = b;
 		if (stack) q_tree.insert({ {b - 1, b}, i });
 		return i;
 	}
@@ -181,8 +180,10 @@ int main() {
 	threads = get<int>("How many threads to use? (Choose a power of 2)");
 	index _msb = get<index>("How many 64 bit words to use in BigInteger? (Choose a power of 2)");
 	index _lsb = -get<index>("How many 64 bit decimal words to use in BigInteger? (Choose a power of 2)");
-	msb = _msb;
-	lsb = _lsb;
+	int_msb = _msb;
+	int_lsb = 0;
+	float_msb = _msb;
+	float_lsb = _lsb;
 	max_b = get<int>("How many iterations?");
 	std::ofstream outFile(getLine("File to output calculated digits:"));
 
@@ -193,15 +194,16 @@ int main() {
 	long long lp = timer();
 	printf("Calculating Q and P of e took %llu ms\n", lp + lq);
 
-	BigInteger pf = p;
-	BigInteger qf = q;
-	BigInteger e = pf / qf;
-	e += 1;
+	BigFloat pf = p;
+	BigFloat qf = q;
+	BigFloat e = pf / qf;
+	e += BigFloat(1);
 	long long le = timer();
 	printf("Final division to calculate e took %llu ms\n", le);
 
 	std::stringstream eStringStream;
 	eStringStream << std::hex << e;
+	std::cout << std::hex << e << std::endl;
 	std::string eString = eStringStream.str();
 	std::string realE = buffer.str();
 	for (int i = 0; i < std::min(eString.size(), realE.size()); i++) {
