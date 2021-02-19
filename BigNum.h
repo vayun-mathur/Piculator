@@ -4,14 +4,14 @@
 
 using word = unsigned long long;
 using index = long long;
+using int64 = long long;
 
 class BigNum
 {
 public:
 	BigNum(index msb, index lsb);
-	BigNum(word w, index msb, index lsb);
+	BigNum(int64 w, index msb, index lsb);
 	BigNum(const BigNum& other, index msb, index lsb);
-	BigNum(const BigNum& other);
 
 	BigNum operator+(const BigNum& other) const;
 	BigNum operator-(const BigNum& other) const;
@@ -19,14 +19,14 @@ public:
 	BigNum& operator-=(const BigNum& other);
 
 	BigNum operator*(const BigNum& other) const;
-	BigNum operator*(word other) const;
+	BigNum operator*(int64 other) const;
 	BigNum& operator*=(const BigNum& other);
-	BigNum& operator*=(word other);
+	BigNum& operator*=(int64 other);
 
 	BigNum operator/(const BigNum& other) const;
-	BigNum operator/(word other) const;
+	BigNum operator/(int64 other) const;
 	BigNum& operator/=(const BigNum& other);
-	BigNum& operator/=(word other);
+	BigNum& operator/=(int64 other);
 
 	BigNum operator%(const BigNum& other) const;
 	word operator%(word other) const;
@@ -36,7 +36,7 @@ public:
 	BigNum& operator--(); //prefix
 	BigNum operator--(int); //postfix
 
-	BigNum& operator=(word w);
+	BigNum& operator=(int64 w);
 	BigNum& operator=(const BigNum& other);
 
 	BigNum operator&(const BigNum& other) const;
@@ -71,6 +71,7 @@ public:
 
 private:
 	word* arr;
+	bool negative;
 	const index msb;
 	const index lsb;
 };

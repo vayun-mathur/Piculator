@@ -9,7 +9,7 @@ public:
 	BigInteger() : BigNum(int_msb, int_lsb) {
 
 	}
-	BigInteger(word w) : BigNum(w, int_msb, int_lsb) {
+	BigInteger(int64 w) : BigNum(w, int_msb, int_lsb) {
 
 	}
 	BigInteger(const BigNum& other) : BigNum(other, int_msb, int_lsb) {
@@ -26,7 +26,7 @@ public:
 	BigFloat() : BigNum(float_msb, float_lsb) {
 
 	}
-	BigFloat(word w) : BigNum(w, float_msb, float_lsb) {
+	BigFloat(int64 w) : BigNum(w, float_msb, float_lsb) {
 
 	}
 	BigFloat(const BigNum& other) : BigNum(other, float_msb, float_lsb) {
