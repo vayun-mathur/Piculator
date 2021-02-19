@@ -1,11 +1,21 @@
 #include "BigNum.h"
-#include <intrin.h>
-#include <immintrin.h>
+#include "Intrinsics.h"
 #include <exception>
 #include <iomanip>
 #include "NNT.h"
 
 //TODO: ADD NUMBERS OF DIFFERENT SIZES
+
+struct array_deleter
+{
+	index lsb;
+	array_deleter(index lsb) : lsb(lsb) {}
+	void operator ()(word const* p)
+	{
+		printf("Deleting ptr %p\n", p);
+		delete[] (p+lsb);
+	}
+};
 
 BigNum::BigNum(index msb, index lsb)
 	: msb(msb), lsb(lsb), arr(new word[msb-lsb]-lsb)
@@ -25,12 +35,17 @@ BigNum::BigNum(const BigNum& other, index msb, index lsb)
 	*this = other;
 }
 
+BigNum::BigNum(const BigNum& other)
+	: msb(other.msb), lsb(other.lsb), arr(other.arr)
+{
+}
+
 BigNum BigNum::operator+(const BigNum& other) const
 {
 	BigNum res(msb, lsb);
-	unsigned char carry = 0;
+	bool carry = 0;
 	for (index bit = lsb; bit < msb; ++bit) {
-		carry = _addcarry_u64(carry, this->arr[bit], other.arr[bit], res.arr + bit);
+		carry = adc(carry, this->arr[bit], other.arr[bit], res.arr + bit);
 	}
 	return res;
 }
@@ -38,35 +53,35 @@ BigNum BigNum::operator+(const BigNum& other) const
 BigNum BigNum::operator-(const BigNum& other) const
 {
 	BigNum res(msb, lsb);
-	unsigned char carry = 0;
+	bool carry = 0;
 	for (index bit = lsb; bit < msb; ++bit) {
-		carry = _subborrow_u64(carry, this->arr[bit], other.arr[bit], res.arr + bit);
+		carry = subb(carry, this->arr[bit], other.arr[bit], res.arr + bit);
 	}
 	return res;
 }
 
 BigNum& BigNum::operator+=(const BigNum& other)
 {
-	unsigned char carry = 0;
+	bool carry = 0;
 	for (index bit = lsb; bit < msb; ++bit) {
-		carry = _addcarry_u64(carry, this->arr[bit], other.arr[bit], this->arr + bit);
+		carry = adc(carry, this->arr[bit], other.arr[bit], this->arr + bit);
 	}
 	return *this;
 }
 
 BigNum& BigNum::operator-=(const BigNum& other)
 {
-	unsigned char carry = 0;
+	bool carry = 0;
 	for (index bit = lsb; bit < msb; ++bit) {
-		carry = _subborrow_u64(carry, this->arr[bit], other.arr[bit], this->arr + bit);
+		carry = subb(carry, this->arr[bit], other.arr[bit], this->arr + bit);
 	}
 	return *this;
 }
 
 void carryTrain(word* arr, index msb, index index, uint64_t value) {
-	bool carry = _addcarry_u64(0, arr[index], value, arr + index);
+	bool carry = adc(0, arr[index], value, arr + index);
 	while (index < msb && carry) {
-		carry = _addcarry_u64(carry, arr[index], 0, arr + index);
+		carry = adc(carry, arr[index], 0, arr + index);
 		++index;
 	}
 }
@@ -74,41 +89,42 @@ void carryTrain(word* arr, index msb, index index, uint64_t value) {
 BigNum BigNum::operator*(const BigNum& other) const
 {
 	int n = 8 * (msb-lsb);
-	DWORD* x, * y, * xx, * yy, a;
-	x = new DWORD[n], xx = new DWORD[n];
+	DWORD* x, * y, * x, * yy, a;
+	x = new DWORD[n], x = new DWORD[n];
 	y = new DWORD[n], yy = new DWORD[n];
 	for (int i = 0; i < n; i++) {
-		x[i] = ((uint8_t*)(this->arr+lsb))[i];
+		x[i] = ((uint8_t*)(this->arr +lsb))[i];
 		y[i] = ((uint8_t*)(other.arr + lsb))[i];
 	}
+
 	//NTT
 	NNT ntt;
-	ntt.NTT(xx, x, n);
+	ntt.NTT(x, x, n);
 	ntt.NTT(yy, y);
 
 	// Convolution
-	for (int i = 0; i < n; i++) xx[i] = ntt.modmul(xx[i], yy[i]);
+	for (int i = 0; i < n; i++) x[i] = ntt.modmul(x[i], yy[i]);
 
 	//INTT
-	ntt.iNTT(yy, xx);
+	ntt.iNTT(yy, x);
+
 	BigNum res(msb, lsb);
 	res = 0;
 	for (index i = 0; i < msb-lsb; i++) {
 		word v1 = 0;
 		word v2 = 0;
 		for (int k = 0; k < 8; k++) {
-			v2 += _addcarry_u64(0, v1, ((word)yy[i * 8 + k]) << (k * 8), &v1);
-			v2 += __shiftleft128((word)yy[i * 8 + k], 0, k * 8);
+			v2 += adc(0, v1, ((word)yy[i * 8 + k]) << (k * 8), &v1);
+			v2 += _shiftleft128((word)yy[i * 8 + k], 0, k * 8);
 		}
 
-		carryTrain(res.arr, msb, i+lsb, v1);
-		carryTrain(res.arr, msb, i+lsb + 1, v2);
+		carryTrain(res.arr, msb, i+2*lsb, v1);
+		carryTrain(res.arr, msb, i+2*lsb + 1, v2);
 	}
-	res <<= -lsb * 64;
 
 	delete[] x;
 	delete[] y;
-	delete[] xx;
+	delete[] x;
 	delete[] yy;
 
 	return res;
@@ -120,8 +136,8 @@ BigNum BigNum::operator*(word other) const
 	word high = 0;
 	for (index bit = lsb; bit < msb; ++bit) {
 		word high_temp;
-		res.arr[bit] = _umul128(this->arr[bit], other, &high_temp);
-		high_temp += _addcarry_u64(0, res.arr[bit], high, res.arr + bit);
+		res.arr[bit] = mulx(this->arr[bit], other, &high_temp);
+		high_temp += adc(0, res.arr[bit], high, res.arr + bit);
 	}
 	return res;
 }
@@ -138,8 +154,8 @@ BigNum& BigNum::operator*=(word other)
 	word high = 0;
 	for (index bit = lsb; bit < msb; ++bit) {
 		word high_temp;
-		this->arr[bit] = _umul128(this->arr[bit], other, &high_temp);
-		high_temp += _addcarry_u64(0, this->arr[bit], high, this->arr + bit);
+		this->arr[bit] = mulx(this->arr[bit], other, &high_temp);
+		high_temp += adc(0, this->arr[bit], high, this->arr + bit);
 	}
 	return *this;
 }
@@ -157,7 +173,6 @@ BigNum BigNum::operator/(const BigNum& other) const
 		bit++;
 	}
 	while (bit >= lsb) {
-		//std::cout << divisor << std::endl << dividend << std::endl << std::endl;
 		if (divisor < dividend) {
 			word mand = 1ull << 63;
 			word shift = 63;
@@ -184,7 +199,7 @@ BigNum BigNum::operator/(word other) const
 	BigNum res(msb, lsb);
 	word high = 0;
 	for (index bit = msb - 1; bit >= lsb; --bit) {
-		res.arr[bit] = _udiv128(high, this->arr[bit], other, &high);
+		res.arr[bit] = div(high, this->arr[bit], other, &high);
 	}
 	return res;
 }
@@ -200,7 +215,7 @@ BigNum& BigNum::operator/=(word other)
 {
 	word high = 0;
 	for (index bit = msb - 1; bit >= lsb; --bit) {
-		this->arr[bit] = _udiv128(high, this->arr[bit], other, &high);
+		this->arr[bit] = div(high, this->arr[bit], other, &high);
 	}
 	return *this;
 }
@@ -245,16 +260,16 @@ word BigNum::operator%(word other) const
 {
 	word high = 0;
 	for (index bit = msb - 1; bit >= lsb; --bit) {
-		_udiv128(high, this->arr[bit], other, &high);
+		div(high, this->arr[bit], other, &high);
 	}
 	return high;
 }
 
 BigNum& BigNum::operator++()
 {
-	unsigned char carry = 1;
+	bool carry = 1;
 	for (index bit = 0; bit < msb && carry; ++bit) {
-		carry = _addcarry_u64(carry, this->arr[bit], 0, this->arr + bit);
+		carry = adc(carry, this->arr[bit], 0, this->arr + bit);
 	}
 	return *this;
 }
@@ -268,9 +283,9 @@ BigNum BigNum::operator++(int)
 
 BigNum& BigNum::operator--()
 {
-	unsigned char carry = 1;
+	bool carry = 1;
 	for (index bit = 0; bit < msb && carry; ++bit) {
-		carry = _subborrow_u64(carry, this->arr[bit], 0, this->arr + bit);
+		carry = subb(carry, this->arr[bit], 0, this->arr + bit);
 	}
 	return *this;
 }
@@ -376,7 +391,7 @@ BigNum BigNum::operator<<(word shift_count) const
 	word low = 0;
 	for (index bit = lsb; bit < msb; bit++) {
 		word curr_bit = res.arr[bit];
-		res.arr[bit] = __shiftleft128(low, curr_bit, shift_count);
+		res.arr[bit] = _shiftleft128(low, curr_bit, shift_count);
 		low = curr_bit;
 	}
 	return res;
@@ -396,7 +411,7 @@ BigNum BigNum::operator>>(word shift_count) const
 	word high = 0;
 	for (index bit = msb - 1; bit >= lsb; bit--) {
 		word curr_bit = res.arr[bit];
-		res.arr[bit] = __shiftright128(curr_bit, high, shift_count);
+		res.arr[bit] = _shiftright128(curr_bit, high, shift_count);
 		high = curr_bit;
 	}
 	return res;
@@ -415,7 +430,7 @@ BigNum& BigNum::operator<<=(word shift_count)
 	word low = 0;
 	for (index bit = lsb; bit < msb; bit++) {
 		word curr_bit = this->arr[bit];
-		this->arr[bit] = __shiftleft128(low, curr_bit, shift_count);
+		this->arr[bit] = _shiftleft128(low, curr_bit, shift_count);
 		low = curr_bit;
 	}
 	return *this;
@@ -434,7 +449,7 @@ BigNum& BigNum::operator>>=(word shift_count)
 	word high = 0;
 	for (index bit = msb - 1; bit >= lsb; bit--) {
 		word curr_bit = this->arr[bit];
-		this->arr[bit] = __shiftright128(curr_bit, high, shift_count);
+		this->arr[bit] = _shiftright128(curr_bit, high, shift_count);
 		high = curr_bit;
 	}
 	return *this;
@@ -534,4 +549,35 @@ std::ostream& operator<<(std::ostream& os, const BigNum& ref)
 
 	}
 	return os;
+}
+
+index get_msb(word* arr, index msb, index lsb) {
+	for (index bit = msb - 1; bit >= lsb; bit--) {
+		if (arr[bit] != 0) {
+			return bit;
+		}
+	}
+	return lsb - 1;
+}
+
+BigNum invsqrt(const BigNum& x)
+{
+	BigNum r = BigNum(1ull, x.msb, x.lsb);
+	BigNum one = BigNum(1ull, x.msb, x.lsb);
+	BigNum three = BigNum(3ull, x.msb, x.lsb);
+
+	BigNum rPrev = BigNum(0ull, x.msb, x.lsb);
+
+	while (1) {
+		std::cout << std::hex << r << std::endl;
+		if (r == rPrev) {
+			break;
+		}
+		BigNum r2 = r * r;
+		BigNum r2x = r2 * x;
+		rPrev = r;
+		r = r * ((three - r2x) / 2ull);
+	}
+
+	return r;
 }

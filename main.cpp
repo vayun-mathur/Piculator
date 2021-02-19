@@ -173,6 +173,10 @@ uint64_t numBits(word w) {
 }
 
 int main() {
+	float_msb = 4;
+	float_lsb = -4;
+	sqrt(BigFloat(2));
+	/*
 	std::ifstream hexEFile("C:\\Users\\Vayun Mathur\\OneDrive\\Documents\\code\\c++\\Math\\Hex Digits.txt");
 	std::stringstream buffer;
 	buffer << hexEFile.rdbuf();
@@ -192,6 +196,7 @@ int main() {
 	long long lq = timer();
 	BigInteger p = PMultiThreaded(0, max_b, (int)log2(threads));
 	long long lp = timer();
+	printf("\n");
 	printf("Calculating Q and P of e took %llu ms\n", lp + lq);
 
 	BigFloat pf = p;
@@ -200,6 +205,7 @@ int main() {
 	e += BigFloat(1);
 	long long le = timer();
 	printf("Final division to calculate e took %llu ms\n", le);
+	printf("\n");
 
 	std::stringstream eStringStream;
 	eStringStream << std::hex << e;
@@ -222,4 +228,5 @@ int main() {
 	std::cout << "TIP: Increase size of BigInteger to calculate more digits" << std::endl;
 counted:
 	return 0;
+	*/
 }

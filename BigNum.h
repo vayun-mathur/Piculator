@@ -1,5 +1,6 @@
 #pragma once
 #include <iostream>
+#include <memory>
 
 using word = unsigned long long;
 using index = long long;
@@ -10,6 +11,7 @@ public:
 	BigNum(index msb, index lsb);
 	BigNum(word w, index msb, index lsb);
 	BigNum(const BigNum& other, index msb, index lsb);
+	BigNum(const BigNum& other);
 
 	BigNum operator+(const BigNum& other) const;
 	BigNum operator-(const BigNum& other) const;
@@ -65,8 +67,10 @@ public:
 
 	friend std::ostream& operator<<(std::ostream& os, const BigNum& ref);
 
+	friend BigNum invsqrt(const BigNum& x);
+
 private:
 	word* arr;
-	index msb;
-	index lsb;
+	const index msb;
+	const index lsb;
 };

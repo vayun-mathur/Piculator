@@ -132,6 +132,7 @@
       <SDLCheck>true</SDLCheck>
       <PreprocessorDefinitions>NDEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
+      <LanguageStandard>stdcpp17</LanguageStandard>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
@@ -143,10 +144,12 @@
   <ItemGroup>
     <ClInclude Include="BigInteger.h" />
     <ClInclude Include="BigNum.h" />
+    <ClInclude Include="Intrinsics.h" />
     <ClInclude Include="NNT.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="BigNum.cpp" />
+    <ClCompile Include="Intrinsics.cpp" />
     <ClCompile Include="main.cpp" />
     <ClCompile Include="NNT.cpp" />
   </ItemGroup>
