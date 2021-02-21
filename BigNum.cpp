@@ -479,56 +479,23 @@ BigNum::operator bool() const
 	return false;
 }
 
-bool BigNum::operator<(const BigNum& other) const
-{
-	for (index bit = msb - 1; bit >= lsb; --bit) {
-		if (this->arr[bit] < other.arr[bit]) return true;
-		if (this->arr[bit] > other.arr[bit]) return false;
+int compare(const BigNum& r1, const BigNum& r2) {
+	if (r1.negative && !r2.negative) return -1;
+	if (!r1.negative && r2.negative) return 1;
+	if (r1.negative && r2.negative) {
+		for (index bit = r1.msb - 1; bit >= r1.lsb; --bit) {
+			if (r1.arr[bit] < r2.arr[bit]) return 1;
+			if (r1.arr[bit] > r2.arr[bit]) return -1;
+		}
+		return 0;
 	}
-	return false;
-}
-
-bool BigNum::operator>(const BigNum& other) const
-{
-	for (index bit = msb - 1; bit >= lsb; --bit) {
-		if (this->arr[bit] < other.arr[bit]) return false;
-		if (this->arr[bit] > other.arr[bit]) return true;
+	else {
+		for (index bit = r1.msb - 1; bit >= r1.lsb; --bit) {
+			if (r1.arr[bit] < r2.arr[bit]) return -1;
+			if (r1.arr[bit] > r2.arr[bit]) return 1;
+		}
+		return 0;
 	}
-	return false;
-}
-
-bool BigNum::operator<=(const BigNum& other) const
-{
-	for (index bit = msb - 1; bit >= lsb; --bit) {
-		if (this->arr[bit] < other.arr[bit]) return true;
-		if (this->arr[bit] > other.arr[bit]) return false;
-	}
-	return true;
-}
-
-bool BigNum::operator>=(const BigNum& other) const
-{
-	for (index bit = msb - 1; bit >= lsb; --bit) {
-		if (this->arr[bit] < other.arr[bit]) return false;
-		if (this->arr[bit] > other.arr[bit]) return true;
-	}
-	return true;
-}
-
-bool BigNum::operator==(const BigNum& other) const
-{
-	for (index bit = msb - 1; bit >= lsb; --bit) {
-		if (this->arr[bit] != other.arr[bit]) return false;
-	}
-	return true;
-}
-
-bool BigNum::operator!=(const BigNum& other) const
-{
-	for (index bit = msb - 1; bit >= lsb; --bit) {
-		if (this->arr[bit] == other.arr[bit]) return true;
-	}
-	return false;
 }
 
 std::ostream& operator<<(std::ostream& os, const BigNum& ref)

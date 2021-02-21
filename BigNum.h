@@ -58,12 +58,13 @@ public:
 
 	operator bool() const;
 
-	bool operator<(const BigNum& other) const;
-	bool operator>(const BigNum& other) const;
-	bool operator<=(const BigNum& other) const;
-	bool operator>=(const BigNum& other) const;
-	bool operator==(const BigNum& other) const;
-	bool operator!=(const BigNum& other) const;
+	friend int compare(const BigNum& r1, const BigNum& r2);
+	inline bool operator<(const BigNum& other) const { return compare(*this, other) < 0; }
+	inline bool operator>(const BigNum& other) const { return compare(*this, other) > 0; }
+	inline bool operator<=(const BigNum& other) const { return compare(*this, other) <= 0; }
+	inline bool operator>=(const BigNum& other) const { return compare(*this, other) >= 0; }
+	inline bool operator==(const BigNum& other) const { return compare(*this, other) == 0; }
+	inline bool operator!=(const BigNum& other) const { return compare(*this, other) != 0; }
 
 	friend std::ostream& operator<<(std::ostream& os, const BigNum& ref);
 
