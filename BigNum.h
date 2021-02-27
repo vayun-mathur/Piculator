@@ -1,6 +1,7 @@
 #pragma once
 #include <iostream>
 #include <memory>
+#include <string>
 
 using word = unsigned long long;
 using index = long long;
@@ -52,9 +53,9 @@ public:
 	BigNum& operator<<=(word shift_count);
 	BigNum& operator>>=(word shift_count);
 
-	bool operator&&(const BigNum& other) const;
-	bool operator||(const BigNum& other) const;
-	bool operator!() const;
+	inline bool operator&&(const BigNum& other) const { return bool(*this) && bool(other); }
+	inline bool operator||(const BigNum& other) const { return bool(*this) || bool(other); }
+	inline bool operator!() const { return !bool(*this); }
 
 	operator bool() const;
 
@@ -70,7 +71,10 @@ public:
 
 	friend BigNum invsqrt(const BigNum& x);
 
+	std::string toHexString();
+
 private:
+	std::shared_ptr<word[]> ptr;
 	word* arr;
 	bool negative;
 	const index msb;

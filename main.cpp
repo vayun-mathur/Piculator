@@ -9,57 +9,46 @@
 
 BigInteger r, total;
 
-BigInteger _P(const BigInteger& pam, const BigInteger& pmb, int a, int m, int b, BinarySplitting::StoredMap& tree) {
+BigInteger _P(const BigInteger& pam, const BigInteger& pmb, int64 a, int64 m, int64 b, BinarySplitting::StoredMap& tree) {
 	return pam * tree['Q'][{m, b}] + pmb * tree['R'][{a, m}];
 }
 
-BigInteger _Q(const BigInteger& qam, const BigInteger& qmb, int a, int m, int b, BinarySplitting::StoredMap& tree) {
+BigInteger _Q(const BigInteger& qam, const BigInteger& qmb, int64 a, int64 m, int64 b, BinarySplitting::StoredMap& tree) {
 	return qam * qmb;
 }
 
-BigInteger _R(const BigInteger& ram, const BigInteger& rmb, int a, int m, int b, BinarySplitting::StoredMap& tree) {
+BigInteger _R(const BigInteger& ram, const BigInteger& rmb, int64 a, int64 m, int64 b, BinarySplitting::StoredMap& tree) {
 	return ram * rmb;
+}
+
+BigInteger _P_init(int64 b) {
+	return (BigInteger(b) * 545140134ll + 13591409ll) * (2 * b - 1) * (6 * b - 5) * (6 * b - 1) * (b % 2 == 0 ? 1ll : -1ll);
+}
+
+BigInteger _Q_init(int64 b) {
+	return BigInteger(10939058860032000ll) * b * b * b;
+}
+
+BigInteger _R_init(int64 b) {
+	return BigInteger(2 * b - 1) * (6 * b - 5) * (6 * b - 1);
 }
 
 struct PiSplitting : BinarySplitting {
 public:
-	PiSplitting(int max_b, int threads)
-		: BinarySplitting(max_b, threads)
+	PiSplitting()
 	{
-
+		functions.push_back({ 'Q', BinarySplitting::Function(false, true, _Q_init, _Q, 'Q') });
+		functions.push_back({ 'R', BinarySplitting::Function(false, true, _R_init, _R, 'R') });
+		functions.push_back({ 'P', BinarySplitting::Function(false, true, _P_init, _P, 'P') });
 	}
 
-	BigInteger PMultiThreaded(int a, int b) {
-		auto init = [](int _b)->BigInteger {
-			int64 __b = _b;
-			return (BigInteger(__b) * 545140134ll + 13591409ll) * (2 * __b - 1) * (6 * __b - 5) * (6 * __b - 1) * (__b % 2 == 0 ? 1 : -1);
-		};
-		return MultiThreaded(a, b, true, false, init, _P, 'P');
-	}
-
-	BigInteger QMultiThreaded(int a, int b) {
-		auto init = [](int _b)->BigInteger {
-			int64 __b = _b;
-			return BigInteger(10939058860032000ll) * __b * __b * __b;
-		};
-		return MultiThreaded(a, b, true, false, init, _Q, 'Q');
-	}
-
-	BigInteger RMultiThreaded(int a, int b) {
-		auto init = [](int _b)->BigInteger {
-			int64 __b = _b;
-			return BigInteger(2 * __b - 1) * (6 * __b - 5) * (6 * __b - 1);
-		};
-		return MultiThreaded(a, b, true, false, init, _R, 'R');
+	virtual BigFloat calculateFinal(std::map<char, BigInteger>& BS_functions) override {
+		BigFloat q = BS_functions['Q'];
+		BigFloat r = BS_functions['R'];
+		BigFloat p = BS_functions['P'];
+		return (q * 4270934400ll) / (p + q * 13591409ll) * invsqrt(BigFloat(10005));
 	}
 };
-
-long long timer() {
-	static auto start = std::chrono::high_resolution_clock::now();
-	auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::high_resolution_clock::now() - start).count();
-	start = std::chrono::high_resolution_clock::now();
-	return duration;
-}
 template<typename t>
 t get(std::string message) {
 	std::cout << message << std::endl;
@@ -86,57 +75,39 @@ size_t correctDigits(std::string& real, std::string& our_guess) {
 }
 
 int main() {
-	//read real number
-	std::ifstream hexEFile("C:\\Users\\Vayun Mathur\\OneDrive\\Documents\\code\\c++\\Math\\Hex Digits.txt");
-	std::stringstream buffer;
-	//buffer << hexEFile.rdbuf();
 
 	//inputs
 	int threads = get<int>("How many threads to use? (Choose a power of 2)");
 	index _msb = get<index>("How many 64 bit words to use in BigInteger? (Choose a power of 2)");
 	index _lsb = -get<index>("How many 64 bit decimal words to use in BigInteger? (Choose a power of 2)");
-	int_msb = _msb;
-	int_lsb = 0;
-	float_msb = _msb;
-	float_lsb = _lsb;
-	int max_b = get<int>("How many iterations?");
-
-
-	PiSplitting binary_splitting(max_b, threads);
+	int_msb = _msb, int_lsb = 0, float_msb = _msb, float_lsb = _lsb;
+	int64 max_b = get<int64>("How many iterations?");
 
 	std::ofstream outFile(getLine("File to output calculated digits:"));
+	std::ifstream inFile(getLine("File to input correct digits:"));
+	std::string realE(std::istreambuf_iterator<char>{inFile}, {});
+
 
 	//calculate binary sums
-	timer();
-	BigFloat q = binary_splitting.QMultiThreaded(0, max_b);
-	long long lq = timer();
-	BigFloat r = binary_splitting.RMultiThreaded(0, max_b);
-	long long lr = timer();
-	BigFloat p = binary_splitting.PMultiThreaded(0, max_b);
-	long long lp = timer();
-	printf("\nCalculating Q, R, and P of pi took %llu ms\n", lp + lq + lr);
+	PiSplitting binary_splitting;
 
-	//calculate final value;
-	BigFloat e = (q * 4270934400ll) / (p + q * 13591409ll) * invsqrt(BigFloat(10005));
-	long long lpi = timer();
-	printf("Final division to calculate pi took %llu ms\n\n", lpi);
+	long long BS_time, final_time;
+	BigFloat e = binary_splitting.calculate(0, max_b, BS_time, final_time, threads);
+	printf("\nCalculating Binary Splitting functions took %llu ms\n", BS_time);
+	printf("\nFinal calculation took %llu ms\n", final_time);
+
+	std::string eString = e.toHexString();
+
 
 	//compare with real value
-	std::stringstream eStringStream;
-	eStringStream << std::hex << e;
-	std::string eString = eStringStream.str();
-	std::string realE = buffer.str();
-
 	size_t digits = correctDigits(realE, eString);
-	std::cout << "Matched " << std::dec << digits - 2 << " digits past the decimal point" << std::endl;
-	if (digits < std::min(eString.size(), realE.size())) {
-		std::cout << "TIP: Increase iterations to calculate more digits" << std::endl;
-	}
-	else {
-		std::cout << "TIP: Increase size of BigInteger to calculate more digits" << std::endl;
-	}
-	std::cout << std::hex << eString << std::endl;
+	printf("Matched %lli digits past the decimal point\n", digits-2);
+	if (digits < std::min(eString.size(), realE.size()))
+		printf("TIP: Increase iterations to calculate more digits\n");
+	else
+		printf("TIP: Increase size of BigInteger to calculate more digits\n");
 
 	//write calculated value to file
+	std::cout << std::hex << eString << std::endl;
 	outFile << std::hex << eString << std::endl;
 }

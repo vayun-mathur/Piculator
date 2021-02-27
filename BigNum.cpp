@@ -2,6 +2,7 @@
 #include "Intrinsics.h"
 #include <exception>
 #include <iomanip>
+#include <sstream>
 #include "NNT.h"
 
 //TODO: ADD NUMBERS OF DIFFERENT SIZES
@@ -18,7 +19,7 @@ struct array_deleter
 };
 
 BigNum::BigNum(index msb, index lsb)
-	: msb(msb), lsb(lsb), arr(new word[msb - lsb] - lsb), negative(false)
+	: msb(msb), lsb(lsb), ptr(new word[msb-lsb]), arr(ptr.get() - lsb), negative(false)
 {
 	memset(arr + lsb, 0, sizeof(word) * (msb - lsb));
 }
@@ -456,27 +457,19 @@ BigNum& BigNum::operator>>=(word shift_count)
 	return *this;
 }
 
-bool BigNum::operator&&(const BigNum& other) const
-{
-	return bool(*this) && bool(other);
-}
-
-bool BigNum::operator||(const BigNum& other) const
-{
-	return bool(*this) || bool(other);
-}
-
-bool BigNum::operator!() const
-{
-	return !bool(*this);
-}
-
 BigNum::operator bool() const
 {
 	for (index bit = msb - 1; bit >= lsb; --bit) {
 		if (this->arr[bit] != 0) return true;
 	}
 	return false;
+}
+
+std::string BigNum::toHexString()
+{
+	std::stringstream ss;
+	ss << std::hex << *this;
+	return ss.str();
 }
 
 int compare(const BigNum& r1, const BigNum& r2) {
@@ -543,7 +536,8 @@ BigNum invsqrt(const BigNum& x)
 		}
 		BigNum r2 = r * r;
 		BigNum r2x = r2 * x;
-		if (get_msb((((three - r2x) / 2ll) - one).arr, x.msb, x.lsb) == x.lsb) break;
+		int prec = get_msb((((three - r2x) / 2ll) - one).arr, x.msb, x.lsb);
+		if (prec <= x.lsb/2) break;
 		rPrev = r;
 		r *= ((three - r2x) / 2ll);
 	}
