@@ -14,6 +14,9 @@ public:
 	BigNum(int64 w, index msb, index lsb);
 	BigNum(const BigNum& other, index msb, index lsb);
 
+	friend BigNum add(const BigNum& n1, const BigNum& n2, bool neg);
+	friend BigNum sub(const BigNum& n1, const BigNum& n2, bool neg);
+
 	BigNum operator+(const BigNum& other) const;
 	BigNum operator-(const BigNum& other) const;
 	BigNum& operator+=(const BigNum& other);

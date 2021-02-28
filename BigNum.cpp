@@ -19,7 +19,7 @@ struct array_deleter
 };
 
 BigNum::BigNum(index msb, index lsb)
-	: msb(msb), lsb(lsb), ptr(new word[msb-lsb]), arr(ptr.get() - lsb), negative(false)
+	: msb(msb), lsb(lsb), ptr(new word[msb - lsb]), arr(ptr.get() - lsb), negative(false)
 {
 	memset(arr + lsb, 0, sizeof(word) * (msb - lsb));
 }
@@ -36,42 +36,60 @@ BigNum::BigNum(const BigNum& other, index msb, index lsb)
 	*this = other;
 }
 
-BigNum BigNum::operator+(const BigNum& other) const
-{
+BigNum add(const BigNum& n1, const BigNum& n2, bool neg) {
+	int msb = n1.msb;
+	int lsb = n1.lsb;
 	BigNum res(msb, lsb);
 	bool carry = 0;
 	for (index bit = lsb; bit < msb; ++bit) {
-		carry = adc(carry, this->arr[bit], other.arr[bit], res.arr + bit);
+		carry = adc(carry, n1.arr[bit], n2.arr[bit], res.arr + bit);
 	}
+	res.negative = neg;
 	return res;
+}
+
+BigNum sub(const BigNum& n1, const BigNum& n2, bool neg) {
+	int msb = n1.msb;
+	int lsb = n1.lsb;
+	BigNum res(msb, lsb);
+	bool carry = 0;
+	for (index bit = lsb; bit < msb; ++bit) {
+		carry = subb(carry, n1.arr[bit], n2.arr[bit], res.arr + bit);
+	}
+	res.negative = neg;
+	return res;
+}
+
+BigNum BigNum::operator+(const BigNum& other) const
+{
+	int cmp = compare(*this, other);
+	if(negative == other.negative) return add(*this, other, negative);
+	if (negative && !other.negative) {
+		if (cmp <= 0) return sub(other, *this, false);
+		if (cmp > 0) return sub(*this, other, true);
+	}
+	if (!negative && other.negative) {
+		if (cmp < 0) return sub(other, *this, true);
+		if (cmp >= 0) return sub(*this, other, false);
+	}
 }
 
 BigNum BigNum::operator-(const BigNum& other) const
 {
-	BigNum res(msb, lsb);
-	bool carry = 0;
-	for (index bit = lsb; bit < msb; ++bit) {
-		carry = subb(carry, this->arr[bit], other.arr[bit], res.arr + bit);
-	}
-	return res;
+	BigNum addend(msb, lsb);
+	addend = other;
+	addend.negative = !addend.negative;
+	return *this + addend;
 }
 
 BigNum& BigNum::operator+=(const BigNum& other)
 {
-	bool carry = 0;
-	for (index bit = lsb; bit < msb; ++bit) {
-		carry = adc(carry, this->arr[bit], other.arr[bit], this->arr + bit);
-	}
-	return *this;
+	return *this = *this + other;
 }
 
 BigNum& BigNum::operator-=(const BigNum& other)
 {
-	bool carry = 0;
-	for (index bit = lsb; bit < msb; ++bit) {
-		carry = subb(carry, this->arr[bit], other.arr[bit], this->arr + bit);
-	}
-	return *this;
+	return *this = *this - other;
 }
 
 void carryTrain(word* arr, index msb, index index, uint64_t value) {
@@ -134,16 +152,12 @@ BigNum BigNum::operator*(const BigNum& other) const
 
 BigNum BigNum::operator*(int64 other) const
 {
-	BigNum res = BigNum(*this, msb, lsb);
-	res *= other;
-	return res;
+	return (BigNum(*this, msb, lsb) *= other);
 }
 
 BigNum& BigNum::operator*=(const BigNum& other)
 {
-	BigNum& _this = *this;
-	_this = _this * other;
-	return _this;
+	return *this = *this * other;
 }
 
 BigNum& BigNum::operator*=(int64 other)
@@ -161,6 +175,16 @@ BigNum& BigNum::operator*=(int64 other)
 	}
 	return *this;
 }
+
+index get_msb(word* arr, index msb, index lsb) {
+	for (index bit = msb - 1; bit >= lsb; bit--) {
+		if (arr[bit] != 0) {
+			return bit;
+		}
+	}
+	return lsb - 1;
+}
+
 BigNum BigNum::operator/(const BigNum& other) const
 {
 	BigNum dividend(msb, lsb);
@@ -198,16 +222,12 @@ BigNum BigNum::operator/(const BigNum& other) const
 }
 BigNum BigNum::operator/(int64 other) const
 {
-	BigNum res = *this;
-	res /= other;
-	return res;
+	return (BigNum(*this, msb, lsb) /= other);
 }
 
 BigNum& BigNum::operator/=(const BigNum& other)
 {
-	BigNum& _this = *this;
-	_this = _this / other;
-	return _this;
+	return *this = *this / other;
 }
 
 BigNum& BigNum::operator/=(int64 other)
@@ -225,36 +245,7 @@ BigNum& BigNum::operator/=(int64 other)
 
 BigNum BigNum::operator%(const BigNum& other) const
 {
-	BigNum dividend = *this;
-	BigNum divisor = other;
-	BigNum res(msb, lsb);
-	res = 0;
-	index bit = 0;
-	while (bit + 1 < msb && divisor < dividend) {
-		divisor <<= 64;
-		bit++;
-	}
-	while (bit >= lsb) {
-		if (divisor < dividend) {
-			word mand = 1ull << 63;
-			word shift = 63;
-			word bit_val = 0;
-			BigNum mulres(msb, lsb);
-			while (mand) {
-				mulres = divisor << shift;
-				if (mulres < dividend) {
-					dividend -= mulres;
-					bit_val += mand;
-				}
-				mand >>= 1;
-				shift--;
-			}
-			res.arr[bit] = bit_val;
-		}
-		divisor >>= 64;
-		bit--;
-	}
-	return dividend;
+	return *this - *this / other;
 }
 
 word BigNum::operator%(word other) const
@@ -315,6 +306,7 @@ BigNum& BigNum::operator=(const BigNum& other)
 		this->arr[bit] = other.arr[bit];
 	}
 	for (index bit = other.msb; bit < msb; bit++) this->arr[bit] = 0;
+	negative = other.negative;
 
 	return *this;
 }
@@ -405,6 +397,7 @@ BigNum BigNum::operator>>(word shift_count) const
 	BigNum res(msb, lsb);
 	for (index bit = lsb; bit < msb - shift_count / 64; ++bit) {
 		res.arr[bit] = this->arr[bit + shift_count / 64];
+		std::cout << res.arr[bit];
 	}
 	for (index bit = msb - shift_count / 64; bit < msb; ++bit) {
 		res.arr[bit] = 0;
@@ -512,19 +505,10 @@ std::ostream& operator<<(std::ostream& os, const BigNum& ref)
 	return os;
 }
 
-index get_msb(word* arr, index msb, index lsb) {
-	for (index bit = msb - 1; bit >= lsb; bit--) {
-		if (arr[bit] != 0) {
-			return bit;
-		}
-	}
-	return lsb - 1;
-}
-
 BigNum invsqrt(const BigNum& x)
 {
 	BigNum r = BigNum(0ull, x.msb, x.lsb);
-	r.arr[-1] = 1;
+	r.arr[-1] = 184421341163531203;
 	BigNum one = BigNum(1ull, x.msb, x.lsb);
 	BigNum three = BigNum(3ull, x.msb, x.lsb);
 
@@ -537,7 +521,7 @@ BigNum invsqrt(const BigNum& x)
 		BigNum r2 = r * r;
 		BigNum r2x = r2 * x;
 		int prec = get_msb((((three - r2x) / 2ll) - one).arr, x.msb, x.lsb);
-		if (prec <= x.lsb/2) break;
+		if (prec <= x.lsb / 2) break;
 		rPrev = r;
 		r *= ((three - r2x) / 2ll);
 	}
