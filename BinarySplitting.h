@@ -5,16 +5,19 @@
 #include <vector>
 #include "BigInteger.h"
 
+#define INIT_FUNC(x) [](int64 b) -> BigInteger{return x;}
+#define COMBINE_FUNC(x) [](const BigInteger& am, const BigInteger& mb, std::pair<int64, int64> am_int, std::pair<int64, int64> mb_int, BinarySplitting::StoredMap& tree) -> BigInteger{return x;}
+
 struct BinarySplitting {
 public:
 	using StoredMap = std::map<char, std::map<std::pair<int64, int64>, BigInteger>>;
 	struct Function {
 		bool storeLeft, storeRight;
 		BigInteger(* const init)(int64);
-		BigInteger(* const combine)(const BigInteger&, const BigInteger&, int64, int64, int64, StoredMap&);
+		BigInteger(* const combine)(const BigInteger&, const BigInteger&, std::pair<int64, int64>, std::pair<int64, int64>, StoredMap&);
 		char c;
 		Function(bool storeLeft, bool storeRight, BigInteger(* const init)(int64),
-			BigInteger(* const combine)(const BigInteger&, const BigInteger&, int64, int64, int64, StoredMap&), char c)
+			BigInteger(* const combine)(const BigInteger&, const BigInteger&, std::pair<int64, int64>, std::pair<int64, int64>, StoredMap&), char c)
 			: storeLeft(storeLeft), storeRight(storeRight), init(init), combine(combine), c(c) {
 
 		}
@@ -49,20 +52,20 @@ private:
 private:
 	int64 cnt;
 	int64 calcs;
-	BigInteger Calculate(int64 a, int64 b, bool storeThis, bool storeLeft, bool storeRight, char name, BigInteger(* const Initialize)(int64), BigInteger(* const combine)(const BigInteger&, const BigInteger&, int64, int64, int64, StoredMap&)) {
+	BigInteger Calculate(int64 a, int64 b, bool storeThis, bool storeLeft, bool storeRight, char name, BigInteger(* const Initialize)(int64), BigInteger(* const combine)(const BigInteger&, const BigInteger&, std::pair<int64, int64>, std::pair<int64, int64>, StoredMap&)) {
 		if (a == b - 1) {
 			BigInteger i = Initialize(b);
-			if (storeThis) tree[name].insert({ {b - 1, b}, i });
+			if (storeThis) tree[name].insert({ {a, b}, i });
 			return i;
 		}
 		int64 m = (a + b) / 2;
-		BigInteger r = combine(Calculate(a, m, storeLeft, storeLeft, storeRight, name, Initialize, combine), Calculate(m, b, storeRight, storeLeft, storeRight, name, Initialize, combine), a, m, b, tree);
+		BigInteger r = combine(Calculate(a, m, storeLeft, storeLeft, storeRight, name, Initialize, combine), Calculate(m, b, storeRight, storeLeft, storeRight, name, Initialize, combine), { a, m }, { m, b }, tree);
 		if (storeThis) tree[name].insert({ {a, b}, r });
 		cnt++;
 		printf("Finished %lli of %lli of %c calculations\r", cnt, calcs, name);
 		return r;
 	}
-	BigInteger MultiThreaded(int64 a, int64 b, bool storeLeft, bool storeRight, BigInteger(* const Initialize)(int64), BigInteger(* const combine)(const BigInteger&, const BigInteger&, int64, int64, int64, StoredMap&), char name, int num_threads) {
+	BigInteger MultiThreaded(int64 a, int64 b, bool storeLeft, bool storeRight, BigInteger(* const Initialize)(int64), BigInteger(* const combine)(const BigInteger&, const BigInteger&, std::pair<int64, int64>, std::pair<int64, int64>, StoredMap&), char name, int num_threads) {
 		cnt = 0;
 		calcs = b - num_threads;
 		tree.insert({ name, std::map<std::pair<int64, int64>, BigInteger>() });
@@ -85,7 +88,7 @@ private:
 		};
 		int i = 0;
 		for (auto&& [_a, _b] : divs) {
-			threads[i] = std::thread(thread, _a, _b, (storeLeft && (i & 1)) || (storeRight && !(i & 1)), std::ref(r[i]));
+			threads[i] = std::thread(thread, _a, _b, (storeLeft && !(i & 1)) || (storeRight && (i & 1)), std::ref(r[i]));
 			i++;
 		}
 		for (int i = 0; i < divs.size(); i++) threads[i].join();
@@ -97,6 +100,7 @@ private:
 		}
 		for (int i = 0; i < thread_depth; i++) {
 			int cnt = 0;
+			int it_idx = 0;
 			for (auto it = ress.begin(); it != ress.end(); ++it) {
 				auto it_prev = it++;
 				BigInteger am = it_prev->second;
@@ -105,12 +109,13 @@ private:
 				int _b = it->first.second;
 				int _m = it->first.first;
 				ress.erase(it_prev);
-				BigInteger res = combine(am, mb, _a, _m, _b, tree);
+				BigInteger res = combine(am, mb, { _a, _m }, { _m, _b }, tree);
 				it->second = res;
 				it->first = { _a, _b };
 
-				if ((storeRight && (i & 1)) || (storeRight && !(i & 1))) tree[name].insert({ {_a, _b}, res });
+				if ((storeLeft && !(it_idx & 1)) || (storeRight && (it_idx & 1))) tree[name].insert({ {_a, _b}, res });
 				cnt++;
+				it_idx++;
 			}
 		}
 		printf("\n");

@@ -465,6 +465,13 @@ std::string BigNum::toHexString()
 	return ss.str();
 }
 
+std::string BigNum::toDecimalString()
+{
+	std::stringstream ss;
+	ss << std::dec << *this;
+	return ss.str();
+}
+
 int compare(const BigNum& r1, const BigNum& r2) {
 	if (r1.negative && !r2.negative) return -1;
 	if (!r1.negative && r2.negative) return 1;

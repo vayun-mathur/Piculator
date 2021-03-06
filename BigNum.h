@@ -74,6 +74,7 @@ public:
 
 	friend BigNum invsqrt(const BigNum& x);
 
+	std::string toDecimalString();
 	std::string toHexString();
 
 private:
