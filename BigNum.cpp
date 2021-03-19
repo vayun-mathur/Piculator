@@ -5,19 +5,6 @@
 #include <sstream>
 #include "NNT.h"
 
-//TODO: ADD NUMBERS OF DIFFERENT SIZES
-
-struct array_deleter
-{
-	index lsb;
-	array_deleter(index lsb) : lsb(lsb) {}
-	void operator ()(word const* p)
-	{
-		printf("Deleting ptr %p\n", p);
-		delete[](p + lsb);
-	}
-};
-
 BigNum::BigNum(index msb, index lsb)
 	: msb(msb), lsb(lsb), ptr(new word[msb - lsb]), arr(ptr.get() - lsb), negative(false)
 {
@@ -37,8 +24,8 @@ BigNum::BigNum(const BigNum& other, index msb, index lsb)
 }
 
 BigNum add(const BigNum& n1, const BigNum& n2, bool neg) {
-	int msb = n1.msb;
-	int lsb = n1.lsb;
+	index msb = n1.msb;
+	index lsb = n1.lsb;
 	BigNum res(msb, lsb);
 	bool carry = 0;
 	for (index bit = lsb; bit < msb; ++bit) {
@@ -49,8 +36,8 @@ BigNum add(const BigNum& n1, const BigNum& n2, bool neg) {
 }
 
 BigNum sub(const BigNum& n1, const BigNum& n2, bool neg) {
-	int msb = n1.msb;
-	int lsb = n1.lsb;
+	index msb = n1.msb;
+	index lsb = n1.lsb;
 	BigNum res(msb, lsb);
 	bool carry = 0;
 	for (index bit = lsb; bit < msb; ++bit) {
@@ -82,16 +69,6 @@ BigNum BigNum::operator-(const BigNum& other) const
 	return *this + addend;
 }
 
-BigNum& BigNum::operator+=(const BigNum& other)
-{
-	return *this = *this + other;
-}
-
-BigNum& BigNum::operator-=(const BigNum& other)
-{
-	return *this = *this - other;
-}
-
 void carryTrain(word* arr, index msb, index index, uint64_t value) {
 	bool carry = adc(0, arr[index], value, arr + index);
 	while (index < msb && carry) {
@@ -102,22 +79,22 @@ void carryTrain(word* arr, index msb, index index, uint64_t value) {
 
 BigNum BigNum::operator*(const BigNum& other) const
 {
-	int n = 8 * (2 * (msb - lsb));
-	DWORD* x, * y, * xx, * yy, a;
+	index n = 8 * (2 * (msb - lsb));
+	DWORD* x, * y, * xx, * yy;
 	x = new DWORD[n], xx = new DWORD[n];
 	y = new DWORD[n], yy = new DWORD[n];
 	for (int i = 0; i < n / 2; i++) {
 		x[i] = ((uint8_t*)(this->arr + lsb))[i];
 		y[i] = ((uint8_t*)(other.arr + lsb))[i];
 	}
-	for (int i = n / 2; i < n; i++) {
+	for (index i = n / 2; i < n; i++) {
 		x[i] = 0;
 		y[i] = 0;
 	}
 
 	//NTT
 	NNT ntt;
-	ntt.NTT(xx, x, n);
+	ntt.NTT(xx, x, DWORD(n));
 	ntt.NTT(yy, y);
 
 	// Convolution
@@ -152,28 +129,20 @@ BigNum BigNum::operator*(const BigNum& other) const
 
 BigNum BigNum::operator*(int64 other) const
 {
-	return (BigNum(*this, msb, lsb) *= other);
-}
-
-BigNum& BigNum::operator*=(const BigNum& other)
-{
-	return *this = *this * other;
-}
-
-BigNum& BigNum::operator*=(int64 other)
-{
+	BigNum res(msb, lsb);
 	if (other < 0) {
-		this->negative = !this->negative;
+		res.negative = !this->negative;
 		other = -other;
 	}
+	else res.negative = this->negative;
 	word high = 0;
 	for (index bit = lsb; bit < msb; ++bit) {
 		word high_temp = 0;
-		this->arr[bit] = mulx(this->arr[bit], other, &high_temp);
-		high_temp += adc(0, this->arr[bit], high, this->arr + bit);
+		res.arr[bit] = mulx(this->arr[bit], other, &high_temp);
+		high_temp += adc(0, res.arr[bit], high, res.arr + bit);
 		high = high_temp;
 	}
-	return *this;
+	return res;
 }
 
 index get_msb(word* arr, index msb, index lsb) {
@@ -222,25 +191,17 @@ BigNum BigNum::operator/(const BigNum& other) const
 }
 BigNum BigNum::operator/(int64 other) const
 {
-	return (BigNum(*this, msb, lsb) /= other);
-}
-
-BigNum& BigNum::operator/=(const BigNum& other)
-{
-	return *this = *this / other;
-}
-
-BigNum& BigNum::operator/=(int64 other)
-{
+	BigNum res(msb, lsb);
 	if (other < 0) {
-		this->negative = !this->negative;
+		res.negative = !this->negative;
 		other = -other;
 	}
+	else res.negative = this->negative;
 	word high = 0;
 	for (index bit = msb - 1; bit >= lsb; --bit) {
-		this->arr[bit] = div(high, this->arr[bit], other, &high);
+		res.arr[bit] = div(high, this->arr[bit], other, &high);
 	}
-	return *this;
+	return res;
 }
 
 BigNum BigNum::operator%(const BigNum& other) const
@@ -373,19 +334,20 @@ BigNum BigNum::operator~() const
 
 BigNum BigNum::operator<<(word shift_count) const
 {
-	if (shift_count > (msb - lsb) * 64) throw std::exception("Shift count too large");
+	index index_shift = shift_count / 64;
+	if (index_shift > msb - lsb) throw std::exception("Shift count too large");
 	BigNum res(msb, lsb);
-	for (index bit = lsb; bit < lsb + shift_count / 64; ++bit) {
+	for (index bit = lsb; bit < lsb + index_shift; ++bit) {
 		res.arr[bit] = 0;
 	}
-	for (index bit = lsb + shift_count / 64; bit < msb; ++bit) {
-		res.arr[bit] = this->arr[bit - shift_count / 64];
+	for (index bit = lsb + index_shift; bit < msb; ++bit) {
+		res.arr[bit] = this->arr[bit - index_shift];
 	}
-	shift_count %= 64;
+	unsigned char bit_shift = (unsigned char)(shift_count - index_shift * 64);
 	word low = 0;
 	for (index bit = lsb; bit < msb; bit++) {
 		word curr_bit = res.arr[bit];
-		res.arr[bit] = _shiftleft128(low, curr_bit, shift_count);
+		res.arr[bit] = _shiftleft128(low, curr_bit, bit_shift);
 		low = curr_bit;
 	}
 	return res;
@@ -393,20 +355,21 @@ BigNum BigNum::operator<<(word shift_count) const
 
 BigNum BigNum::operator>>(word shift_count) const
 {
-	if (shift_count > (msb - lsb) * 64) throw std::exception("Shift count too large");
+	index index_shift = shift_count / 64;
+	if (index_shift > msb - lsb) throw std::exception("Shift count too large");
 	BigNum res(msb, lsb);
-	for (index bit = lsb; bit < msb - shift_count / 64; ++bit) {
-		res.arr[bit] = this->arr[bit + shift_count / 64];
+	for (index bit = lsb; bit < msb - index_shift; ++bit) {
+		res.arr[bit] = this->arr[bit + index_shift];
 		std::cout << res.arr[bit];
 	}
 	for (index bit = msb - shift_count / 64; bit < msb; ++bit) {
 		res.arr[bit] = 0;
 	}
-	shift_count %= 64;
+	unsigned char bit_shift = (unsigned char)(shift_count - index_shift * 64);
 	word high = 0;
 	for (index bit = msb - 1; bit >= lsb; bit--) {
 		word curr_bit = res.arr[bit];
-		res.arr[bit] = _shiftright128(curr_bit, high, shift_count);
+		res.arr[bit] = _shiftright128(curr_bit, high, bit_shift);
 		high = curr_bit;
 	}
 	return res;
@@ -414,18 +377,19 @@ BigNum BigNum::operator>>(word shift_count) const
 
 BigNum& BigNum::operator<<=(word shift_count)
 {
-	if (shift_count > (msb - lsb) * 64) throw std::exception("Shift count too large");
-	for (index bit = msb - 1; bit >= lsb + (index)(shift_count / 64); --bit) {
-		this->arr[bit] = this->arr[bit - shift_count / 64];
+	index index_shift = shift_count / 64;
+	if (index_shift > msb - lsb) throw std::exception("Shift count too large");
+	for (index bit = msb - 1; bit >= lsb + index_shift; --bit) {
+		this->arr[bit] = this->arr[bit - index_shift];
 	}
-	for (index bit = lsb; bit < lsb + (index)(shift_count / 64); ++bit) {
+	for (index bit = lsb; bit < lsb + index_shift; ++bit) {
 		this->arr[bit] = 0;
 	}
-	shift_count %= 64;
+	unsigned char bit_shift = (unsigned char)(shift_count - index_shift * 64);
 	word low = 0;
 	for (index bit = lsb; bit < msb; bit++) {
 		word curr_bit = this->arr[bit];
-		this->arr[bit] = _shiftleft128(low, curr_bit, shift_count);
+		this->arr[bit] = _shiftleft128(low, curr_bit, bit_shift);
 		low = curr_bit;
 	}
 	return *this;
@@ -433,18 +397,19 @@ BigNum& BigNum::operator<<=(word shift_count)
 
 BigNum& BigNum::operator>>=(word shift_count)
 {
-	if (shift_count > (msb - lsb) * 64) throw std::exception("Shift count too large");
-	for (index bit = lsb; bit < msb - (index)(shift_count / 64); ++bit) {
-		this->arr[bit] = this->arr[bit + (index)(shift_count / 64)];
+	index index_shift = shift_count / 64;
+	if (index_shift > msb - lsb) throw std::exception("Shift count too large");
+	for (index bit = lsb; bit < msb - index_shift; ++bit) {
+		this->arr[bit] = this->arr[bit + index_shift];
 	}
-	for (index bit = msb - (index)(shift_count / 64); bit < msb; ++bit) {
+	for (index bit = msb - index_shift; bit < msb; ++bit) {
 		this->arr[bit] = 0;
 	}
-	shift_count %= 64;
+	unsigned char bit_shift = (unsigned char)(shift_count - index_shift * 64);
 	word high = 0;
 	for (index bit = msb - 1; bit >= lsb; bit--) {
 		word curr_bit = this->arr[bit];
-		this->arr[bit] = _shiftright128(curr_bit, high, shift_count);
+		this->arr[bit] = _shiftright128(curr_bit, high, bit_shift);
 		high = curr_bit;
 	}
 	return *this;
@@ -527,7 +492,7 @@ BigNum invsqrt(const BigNum& x)
 		}
 		BigNum r2 = r * r;
 		BigNum r2x = r2 * x;
-		int prec = get_msb((((three - r2x) / 2ll) - one).arr, x.msb, x.lsb);
+		index prec = get_msb((((three - r2x) / 2ll) - one).arr, x.msb, x.lsb);
 		if (prec <= x.lsb / 2) break;
 		rPrev = r;
 		r *= ((three - r2x) / 2ll);

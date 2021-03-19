@@ -6,39 +6,12 @@
 #include <iostream>
 #include <sstream>
 #include <map>
-
-struct PiSplitting : BinarySplitting {
-public:
-	PiSplitting()
-	{
-		functions.push_back({ 'Q', BinarySplitting::Function(false, true, 
-			INIT_FUNC(BigInteger(10939058860032000ll) * b * b * b), 
-			COMBINE_FUNC(am * mb), 
-			'Q') });
-
-		functions.push_back({ 'R', BinarySplitting::Function(true, false, 
-			INIT_FUNC(BigInteger(2 * b - 1) * (6 * b - 5) * (6 * b - 1)), 
-			COMBINE_FUNC(am * mb),
-			'R') });
-
-		functions.push_back({ 'P', BinarySplitting::Function(false, false, 
-			INIT_FUNC((BigInteger(b) * 545140134ll + 13591409ll) * (2 * b - 1) * (6 * b - 5) * (6 * b - 1) * (b % 2 == 0 ? 1ll : -1ll)),
-			COMBINE_FUNC(am * tree['Q'][mb_int] + mb * tree['R'][am_int]),
-			'P') });
-
-	}
-
-	virtual BigFloat calculateFinal(std::map<char, BigInteger>& BS_functions) override {
-		BigFloat q = BS_functions['Q'];
-		BigFloat r = BS_functions['R'];
-		BigFloat p = BS_functions['P'];
-		return (q * 4270934400ll) / (p + q * 13591409ll) * invsqrt(BigFloat(10005));
-	}
-};
+#include <functional>
 
 struct ESplitting : BinarySplitting {
 public:
 	ESplitting()
+		: BinarySplitting(FINAL_FUNC(BigFloat(1) + p / q))
 	{
 		functions.push_back({ 'Q', BinarySplitting::Function(false, true,
 			INIT_FUNC(BigInteger(b)),
@@ -49,17 +22,30 @@ public:
 			INIT_FUNC(BigInteger(1)),
 			COMBINE_FUNC(am * tree['Q'][mb_int] + mb),
 			'P') });
-
-	}
-
-	virtual BigFloat calculateFinal(std::map<char, BigInteger>& BS_functions) override {
-		BigFloat q = BS_functions['Q'];
-		BigFloat p = BS_functions['P'];
-		return BigFloat(1) + p / q;
 	}
 };
 
+struct PiSplitting : BinarySplitting {
+public:
+	PiSplitting()
+		: BinarySplitting(FINAL_FUNC((q * 4270934400ll) / (p + q * 13591409ll) * invsqrt(BigFloat(10005))))
+	{
+		functions.push_back({ 'Q', BinarySplitting::Function(false, true,
+			INIT_FUNC(BigInteger(10939058860032000ll) * b * b * b),
+			COMBINE_FUNC(am * mb),
+			'Q') });
 
+		functions.push_back({ 'R', BinarySplitting::Function(true, false,
+			INIT_FUNC(BigInteger(2 * b - 1) * (6 * b - 5) * (6 * b - 1)),
+			COMBINE_FUNC(am * mb),
+			'R') });
+
+		functions.push_back({ 'P', BinarySplitting::Function(false, false,
+			INIT_FUNC((BigInteger(b) * 545140134ll + 13591409ll) * (2 * b - 1) * (6 * b - 5) * (6 * b - 1) * (b % 2 == 0 ? 1ll : -1ll)),
+			COMBINE_FUNC(am * tree['Q'][mb_int] + mb * tree['R'][am_int]),
+			'P') });
+	}
+};
 
 template<typename t>
 t get(std::string message) {
@@ -121,7 +107,8 @@ int main() {
 	std::string realConstantString(std::istreambuf_iterator<char>{inFile}, {});
 
 	//calculate binary sums
-	BinarySplitting* binary_splitting;
+	BinarySplitting* binary_splitting = nullptr;
+	int64 x = 0;
 	switch (option) {
 	case 0:
 		binary_splitting = new PiSplitting();
@@ -132,7 +119,7 @@ int main() {
 	}
 
 	long long BS_time, final_time;
-	BigFloat constant = binary_splitting->calculate(0, max_b, BS_time, final_time, threads);
+	BigFloat constant = binary_splitting->calculate(9, max_b, BS_time, final_time, threads);
 	printf("\nCalculating Binary Splitting functions took %llu ms\n", BS_time);
 	printf("\nFinal calculation took %llu ms\n", final_time);
 

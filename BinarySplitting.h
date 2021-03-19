@@ -3,37 +3,43 @@
 #include <list>
 #include <thread>
 #include <vector>
+#include <functional>
 #include "BigInteger.h"
 
 #define INIT_FUNC(x) [](int64 b) -> BigInteger{return x;}
+#define INIT_FUNC_VAR(y) [x](int64 b) -> BigInteger{return y;}
 #define COMBINE_FUNC(x) [](const BigInteger& am, const BigInteger& mb, std::pair<int64, int64> am_int, std::pair<int64, int64> mb_int, BinarySplitting::StoredMap& tree) -> BigInteger{return x;}
+#define FINAL_FUNC(x) [](BigFloat q, BigFloat p)->BigFloat {return x; }
+#define FINAL_FUNC_VAR(y) [x](BigFloat q, BigFloat p)->BigFloat {return y; }
 
 struct BinarySplitting {
 public:
 	using StoredMap = std::map<char, std::map<std::pair<int64, int64>, BigInteger>>;
 	struct Function {
 		bool storeLeft, storeRight;
-		BigInteger(* const init)(int64);
+		std::function<BigInteger(int64)> init;
 		BigInteger(* const combine)(const BigInteger&, const BigInteger&, std::pair<int64, int64>, std::pair<int64, int64>, StoredMap&);
 		char c;
-		Function(bool storeLeft, bool storeRight, BigInteger(* const init)(int64),
+		Function(bool storeLeft, bool storeRight, std::function<BigInteger(int64)> init,
 			BigInteger(* const combine)(const BigInteger&, const BigInteger&, std::pair<int64, int64>, std::pair<int64, int64>, StoredMap&), char c)
 			: storeLeft(storeLeft), storeRight(storeRight), init(init), combine(combine), c(c) {
 
 		}
 	};
 
+	BinarySplitting(std::function<BigFloat(BigFloat, BigFloat)> fin) : fin(fin) {
+
+	}
+
 	BigFloat calculate(int64 a, int64 b, long long& BS_time, long long& final_time, int threads) {
 		auto start = std::chrono::high_resolution_clock::now();
 		std::map<char, BigInteger> BS_functions = calculateBS(a, b, threads);
 		BS_time = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::high_resolution_clock::now() - start).count();
 		start = std::chrono::high_resolution_clock::now();
-		BigFloat _final = calculateFinal(BS_functions);
+		BigFloat _final = fin(BS_functions['Q'], BS_functions['P']);
 		final_time = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::high_resolution_clock::now() - start).count();
 		return _final;
 	}
-
-	virtual BigFloat calculateFinal(std::map<char, BigInteger>& BS_functions) = 0;
 
 public:
 	BigInteger MultiThreaded(int64 a, int64 b, Function func, int threads) {
@@ -50,9 +56,9 @@ private:
 	}
 
 private:
-	int64 cnt;
-	int64 calcs;
-	BigInteger Calculate(int64 a, int64 b, bool storeThis, bool storeLeft, bool storeRight, char name, BigInteger(* const Initialize)(int64), BigInteger(* const combine)(const BigInteger&, const BigInteger&, std::pair<int64, int64>, std::pair<int64, int64>, StoredMap&)) {
+	int64 cnt = 0;
+	int64 calcs = 0;
+	BigInteger Calculate(int64 a, int64 b, bool storeThis, bool storeLeft, bool storeRight, char name, std::function<BigInteger(int64)> Initialize, BigInteger(* const combine)(const BigInteger&, const BigInteger&, std::pair<int64, int64>, std::pair<int64, int64>, StoredMap&)) {
 		if (a == b - 1) {
 			BigInteger i = Initialize(b);
 			if (storeThis) tree[name].insert({ {a, b}, i });
@@ -65,9 +71,9 @@ private:
 		printf("Finished %lli of %lli of %c calculations\r", cnt, calcs, name);
 		return r;
 	}
-	BigInteger MultiThreaded(int64 a, int64 b, bool storeLeft, bool storeRight, BigInteger(* const Initialize)(int64), BigInteger(* const combine)(const BigInteger&, const BigInteger&, std::pair<int64, int64>, std::pair<int64, int64>, StoredMap&), char name, int num_threads) {
+	BigInteger MultiThreaded(int64 a, int64 b, bool storeLeft, bool storeRight, std::function<BigInteger(int64)> Initialize, BigInteger(* const combine)(const BigInteger&, const BigInteger&, std::pair<int64, int64>, std::pair<int64, int64>, StoredMap&), char name, int num_threads) {
 		cnt = 0;
-		calcs = b - num_threads;
+		calcs = b;
 		tree.insert({ name, std::map<std::pair<int64, int64>, BigInteger>() });
 		int thread_depth = (int)log2(num_threads);
 
@@ -83,7 +89,7 @@ private:
 		BigInteger* r = new BigInteger[divs.size()];
 		std::thread* threads = new std::thread[divs.size()];
 
-		auto thread = [this, storeLeft, storeRight, name, &Initialize, &combine](int64 a, int64 b, bool stack, BigInteger& res) {
+		auto thread = [this, storeLeft, storeRight, name, Initialize, &combine](int64 a, int64 b, bool stack, BigInteger& res) {
 			res = Calculate(a, b, stack, storeLeft, storeRight, name, Initialize, combine);
 		};
 		int i = 0;
@@ -99,7 +105,6 @@ private:
 			i++;
 		}
 		for (int i = 0; i < thread_depth; i++) {
-			int cnt = 0;
 			int it_idx = 0;
 			for (auto it = ress.begin(); it != ress.end(); ++it) {
 				auto it_prev = it++;
@@ -112,9 +117,9 @@ private:
 				BigInteger res = combine(am, mb, { _a, _m }, { _m, _b }, tree);
 				it->second = res;
 				it->first = { _a, _b };
+				printf("Finished %lli of %lli of %c calculations\r", cnt, calcs, name);
 
 				if ((storeLeft && !(it_idx & 1)) || (storeRight && (it_idx & 1))) tree[name].insert({ {_a, _b}, res });
-				cnt++;
 				it_idx++;
 			}
 		}
@@ -126,4 +131,5 @@ protected:
 	std::vector<std::pair<char, Function>> functions;
 private:
 	StoredMap tree;
+	std::function<BigFloat(BigFloat, BigFloat)> fin;
 };

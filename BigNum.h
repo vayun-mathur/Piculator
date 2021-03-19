@@ -19,21 +19,22 @@ public:
 
 	BigNum operator+(const BigNum& other) const;
 	BigNum operator-(const BigNum& other) const;
-	BigNum& operator+=(const BigNum& other);
-	BigNum& operator-=(const BigNum& other);
+	inline BigNum& operator+=(const BigNum& other) { return *this = *this + other; }
+	inline BigNum& operator-=(const BigNum& other) { return *this = *this - other; }
 
 	BigNum operator*(const BigNum& other) const;
 	BigNum operator*(int64 other) const;
-	BigNum& operator*=(const BigNum& other);
-	BigNum& operator*=(int64 other);
+	inline BigNum& operator*=(const BigNum& other) { return *this = *this * other; }
+	inline BigNum& operator*=(int64 other) { return *this = *this * other; }
 
 	BigNum operator/(const BigNum& other) const;
 	BigNum operator/(int64 other) const;
-	BigNum& operator/=(const BigNum& other);
-	BigNum& operator/=(int64 other);
+	inline BigNum& operator/=(const BigNum& other) { return *this = *this / other; }
+	inline BigNum& operator/=(int64 other) { return *this = *this / other; }
 
 	BigNum operator%(const BigNum& other) const;
 	word operator%(word other) const;
+	inline BigNum operator%=(const BigNum& other) { return *this = *this % other; }
 
 	BigNum& operator++(); //prefix
 	BigNum operator++(int); //postfix
