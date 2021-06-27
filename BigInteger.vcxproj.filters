@@ -15,33 +15,27 @@
     </Filter>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="NNT.h">
+    <ClInclude Include="NTT.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="BigNum.h">
+    <ClInclude Include="FFT.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="BigInteger.h">
+    <ClInclude Include="PI.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="Intrinsics.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="BinarySplitting.h">
+    <ClInclude Include="BigFloat.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="NNT.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
     <ClCompile Include="main.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="BigNum.cpp">
+    <ClCompile Include="NTT.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="Intrinsics.cpp">
+    <ClCompile Include="BigFloat.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>
