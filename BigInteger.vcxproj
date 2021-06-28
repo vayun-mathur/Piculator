@@ -149,13 +149,11 @@
     <ClInclude Include="BigFloat.h" />
     <ClInclude Include="PI.h" />
     <ClInclude Include="FFT.h" />
-    <ClInclude Include="NTT.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="BigFloat.cpp" />
     <ClCompile Include="FFT.cpp" />
     <ClCompile Include="main.cpp" />
-    <ClCompile Include="NTT.cpp" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

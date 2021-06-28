@@ -504,10 +504,6 @@ BigFloat BigFloat::mul(const BigFloat& x, size_t p) const {
         k++;
     }
 
-    //  Allocate FFT arrays
-    auto Ta = std::unique_ptr<complex<double>[]>(new complex<double>[length]);
-    auto Tb = std::unique_ptr<complex<double>[]>(new complex<double>[length]);
-
     //  Perform a convolution using FFT.
     //  Yeah, this is slow for small sizes, but it's asympotically optimal.
 
@@ -517,6 +513,11 @@ BigFloat BigFloat::mul(const BigFloat& x, size_t p) const {
     //  2^29 * 3 = 1,610,612,736 decimal digits.
     if (k > 29)
         throw "FFT size limit exceeded.";
+
+    //  Allocate FFT arrays
+    SIMD_delete deletor;
+    auto Ta = std::unique_ptr<__m128d[], SIMD_delete>((__m128d*)_mm_malloc(length * sizeof(__m128d), 16), deletor);
+    auto Tb = std::unique_ptr<__m128d[], SIMD_delete>((__m128d*)_mm_malloc(length * sizeof(__m128d), 16), deletor);
 
     //  Make sure the twiddle table is big enough.
     fft_ensure_table(k);

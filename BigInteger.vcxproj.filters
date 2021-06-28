@@ -15,9 +15,6 @@
     </Filter>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="NTT.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
     <ClInclude Include="FFT.h">
       <Filter>Header Files</Filter>
     </ClInclude>
@@ -30,9 +27,6 @@
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="main.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="NTT.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="BigFloat.cpp">
