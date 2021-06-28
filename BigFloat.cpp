@@ -15,6 +15,16 @@ BigFloat::BigFloat(BigFloat&& x)
     x.exp = 0;
     x.L = 0;
 }
+BigFloat::BigFloat(const BigFloat& x)
+    : sign(x.sign)
+    , exp(x.exp)
+    , L(x.L)
+{
+    T = std::unique_ptr<uint32_t[]>(new uint32_t[L]);
+    for (int i = 0; i < L; i++) {
+        T[i] = x.T[i];
+    }
+}
 BigFloat& BigFloat::operator=(BigFloat&& x) {
     sign = x.sign;
     exp = x.exp;
@@ -24,6 +34,17 @@ BigFloat& BigFloat::operator=(BigFloat&& x) {
     x.sign = true;
     x.exp = 0;
     x.L = 0;
+
+    return *this;
+}
+BigFloat& BigFloat::operator=(const BigFloat& x) {
+    sign = x.sign;
+    exp = x.exp;
+    L = x.L;
+    T = std::unique_ptr<uint32_t[]>(new uint32_t[L]);
+    for (int i = 0; i < L; i++) {
+        T[i] = x.T[i];
+    }
 
     return *this;
 }
@@ -193,16 +214,6 @@ std::string BigFloat::to_string_sci(size_t digits) const {
 }
 ////////////////////////////////////////////////////////////////////////////////
 //  Getters
-size_t BigFloat::get_precision() const {
-    //  Returns the precision of the number in words.
-    //  Note that each word is 9 decimal digits.
-    return L;
-}
-int64_t BigFloat::get_exponent() const {
-    //  Returns the exponent of the number in words.
-    //  Note that each word is 9 decimal digits.
-    return exp;
-}
 uint32_t BigFloat::word_at(int64_t mag) const {
     //  Returns the word at the mag'th digit place.
     //  This is useful for additions where you need to access a specific "digit place"

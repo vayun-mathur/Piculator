@@ -2,9 +2,9 @@
 
 int main() {
 
-	size_t digits = 1000000;
+	size_t digits = 10'000'000;
 
-	e(digits);
+	//e(digits);
 	Pi(digits);
 
 #ifdef _WIN32

@@ -8,15 +8,17 @@
 class BigFloat {
 public:
 	BigFloat(BigFloat&& x);
+	BigFloat(const BigFloat& x);
 	BigFloat& operator=(BigFloat&& x);
+	BigFloat& operator=(const BigFloat& x);
 
 	BigFloat();
 	BigFloat(uint32_t x, bool sign = true);
 
 	std::string to_string(size_t digits = 0) const;
 	std::string to_string_sci(size_t digits = 0) const;
-	size_t get_precision() const;
-	int64_t get_exponent() const;
+	size_t get_precision() const { return L; }
+	int64_t get_exponent() const { return exp; }
 	uint32_t word_at(int64_t mag) const;
 
 	void negate();
