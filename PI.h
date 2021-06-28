@@ -19,11 +19,15 @@
 #include <algorithm>
 #include <memory>
 #include <iostream>
+#include <list>
+#include <thread>
+#include <omp.h>
 using std::cout;
 using std::endl;
 using std::complex;
 
 #include "BigFloat.h"
+#include "FFT.h"
 
 #if USE_CHRONO
 #include <chrono>
@@ -54,14 +58,22 @@ void dump_to_file(const char* path, const std::string& str) {
 	fwrite(str.c_str(), 1, str.size(), file);
 	fclose(file);
 }
+
+std::string time_str(double s) {
+    size_t seconds = (size_t)floor(s);
+    size_t minutes = seconds / 60;
+    seconds -= minutes * 60;
+    return std::to_string(minutes) + " mins, " + std::to_string(seconds) + " seconds";
+}
+
 ////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////
 //  Pi
 
-size_t iterations = 0;
+size_t iterations;
 size_t steps;
 
-void Pi_BSR(BigFloat& P, BigFloat& Q, BigFloat& R, uint32_t a, uint32_t b, size_t p) {
+void Pi_BSR(BigFloat& P, BigFloat& Q, BigFloat& R, uint32_t a, uint32_t b, size_t p, int tds=1) {
     //  Binary Splitting recursion for the Chudnovsky Formula.
 
     if (b - a == 1) {
@@ -89,8 +101,18 @@ void Pi_BSR(BigFloat& P, BigFloat& Q, BigFloat& R, uint32_t a, uint32_t b, size_
     uint32_t m = (a + b) / 2;
 
     BigFloat P0, Q0, R0, P1, Q1, R1;
-    Pi_BSR(P0, Q0, R0, a, m, p);
-    Pi_BSR(P1, Q1, R1, m, b, p);
+    if (tds == 1) {
+        Pi_BSR(P0, Q0, R0, a, m, p);
+        Pi_BSR(P1, Q1, R1, m, b, p);
+    }
+    else {
+        int tds0 = tds / 2;
+        int tds1 = tds - tds0;
+        std::thread left([&P0, &Q0, &R0, a, m, p, tds0]()->void {Pi_BSR(P0, Q0, R0, a, m, p, tds0); });
+        std::thread right([&P1, &Q1, &R1, m, b, p, tds1]()->void {Pi_BSR(P1, Q1, R1, m, b, p, tds1); });
+        left.join();
+        right.join();
+    }
 
     P = P0.mul(Q1, p).add(P1.mul(R0, p), p);
     Q = Q0.mul(Q1, p);
@@ -106,6 +128,7 @@ void Pi(size_t digits) {
 
     size_t p = (digits + 8) / 9;
     size_t terms = (size_t)(p * 0.6346230241342037371474889163921741077188431452678) + 1;
+    fft_ensure_table(29);
     steps = terms;
 
     //  Limit Exceeded
@@ -119,29 +142,30 @@ void Pi(size_t digits) {
 
     cout << "Summing Series... " << terms << " terms" << endl;
     BigFloat P, Q, R;
-    Pi_BSR(P, Q, R, 0, (uint32_t)terms, p);
+    Pi_BSR(P, Q, R, 0, (uint32_t)terms, p, 8);
+    printf("\r                                                  ");
     printf("\r"); 
     P = Q.mul(13591409).add(P, p);
     Q = Q.mul(4270934400);
     double time1 = wall_clock();
-    cout << "Time: " << time1 - time0 << endl;
+    cout << "Time: " << time_str(time1 - time0) << endl;
 
     cout << "Division... " << endl;
     P = Q.div(P, p);
     double time2 = wall_clock();
-    cout << "Time: " << time2 - time1 << endl;
+    cout << "Time: " << time_str(time2 - time1) << endl;
 
     cout << "InvSqrt... " << endl;
     Q = invsqrt(10005, p);
     double time3 = wall_clock();
-    cout << "Time: " << time3 - time2 << endl;
+    cout << "Time: " << time_str(time3 - time2) << endl;
 
     cout << "Final Multiply... " << endl;
     P = P.mul(Q, p);
     double time4 = wall_clock();
-    cout << "Time: " << time4 - time3 << endl;
+    cout << "Time: " << time_str(time4 - time3) << endl;
 
-    cout << "Total Time = " << time4 - time0 << endl << endl;
+    cout << "Total Time = " << time_str(time4 - time0) << endl << endl;
 
     dump_to_file("pi.txt", P.to_string(digits));
 }

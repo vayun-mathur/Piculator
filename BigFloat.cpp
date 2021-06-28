@@ -518,6 +518,9 @@ BigFloat BigFloat::mul(const BigFloat& x, size_t p) const {
     if (k > 29)
         throw "FFT size limit exceeded.";
 
+    //  Make sure the twiddle table is big enough.
+    fft_ensure_table(k);
+
     int_to_fft(Ta.get(), k, AT, AL);           //  Convert 1st operand
     int_to_fft(Tb.get(), k, BT, BL);           //  Convert 2nd operand
     fft_forward(Ta.get(), k);                //  Transform 1st operand
