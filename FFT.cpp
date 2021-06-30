@@ -19,7 +19,7 @@ using std::complex;
 #define M_PI       3.14159265358979323846
 #endif
 
-std::vector<std::vector<my_complex>> twiddle_table;
+std::vector<my_complex*> twiddle_table;
 void fft_ensure_table(int k) {
     //  Makes sure the twiddle factor table is large enough to handle an FFT of
     //  size 2^k.
@@ -38,16 +38,16 @@ void fft_ensure_table(int k) {
     length /= 2;
 
     //  Build the sub-table.
-    std::vector<my_complex> sub_table;
+    my_complex* sub_table = new my_complex[length];
     for (size_t c = 0; c < length; c++) {
         //  Generate Twiddle Factor
         double angle = omega * c;
         auto twiddle_factor = my_complex(cos(angle), sin(angle));
-        sub_table.push_back(twiddle_factor);
+        sub_table[c] = twiddle_factor;
     }
 
     //  Push into main table.
-    twiddle_table.push_back(std::move(sub_table));
+    twiddle_table.push_back(sub_table);
 }
 void fft_forward(__m128d* T, int k) {
     //  Fast Fourier Transform
@@ -73,7 +73,7 @@ void fft_forward(__m128d* T, int k) {
     size_t half_length = length / 2;
 
     //  Get local twiddle table.
-    std::vector<my_complex>& local_table = twiddle_table[k];
+    my_complex* local_table = twiddle_table[k];
 
     //  Perform FFT reduction into two halves.
     for (size_t c = 0; c < half_length; c++) {
@@ -136,7 +136,7 @@ void fft_inverse(__m128d* T, int k) {
     fft_inverse(T + half_length, k - 1);
 
     //  Get local twiddle table.
-    std::vector<my_complex>& local_table = twiddle_table[k];
+    my_complex* local_table = twiddle_table[k];
 
     //  Perform FFT reduction into two halves.
     for (size_t c = 0; c < half_length; c++) {

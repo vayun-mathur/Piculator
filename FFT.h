@@ -1,14 +1,10 @@
 #include <math.h>
 #include <complex>
 
-struct SIMD_delete {
-	void operator()(__m128d* p) {
-		_mm_free(p);
-	}
-};
 struct my_complex {
 	double r;
 	double i;
+	my_complex() : r(0), i(0) {};
 	my_complex(double _r, double _i) : r(_r), i(_i) {};
 };
 

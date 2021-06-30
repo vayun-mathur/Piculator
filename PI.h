@@ -1,13 +1,5 @@
 #pragma once
-#if defined(_MSC_VER) && (_MSC_VER <= 1600)
-#define USE_CHRONO 0
-#else
-#define USE_CHRONO 1
-#endif
-
-#ifdef _MSC_VER
-#pragma warning(disable:4996)   //  fopen() deprecation
-#endif
+#pragma warning(disable:4996)
 
 
 #define _USE_MATH_DEFINES
@@ -28,25 +20,17 @@ using std::complex;
 
 #include "BigFloat.h"
 #include "FFT.h"
+#include "NTT.h"
 
-#if USE_CHRONO
 #include <chrono>
-#else
-#include <time.h>
-#endif
 
 ////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////
 //  Helpers
 double wall_clock() {
-	//  Get the clock in seconds.
-#if USE_CHRONO
 	auto ratio_object = std::chrono::high_resolution_clock::period();
 	double ratio = (double)ratio_object.num / ratio_object.den;
 	return std::chrono::high_resolution_clock::now().time_since_epoch().count() * ratio;
-#else
-	return (double)clock() / CLOCKS_PER_SEC;
-#endif
 }
 void dump_to_file(const char* path, const std::string& str) {
 	//  Dump a string to a file.
@@ -70,7 +54,7 @@ std::string time_str(double s) {
 ////////////////////////////////////////////////////////////////////////////////
 //  Pi
 
-size_t iterations;
+std::atomic_uint64_t iterations;
 size_t steps;
 
 void Pi_BSR(BigFloat& P, BigFloat& Q, BigFloat& R, uint32_t a, uint32_t b, size_t p, int tds=1) {
@@ -119,7 +103,8 @@ void Pi_BSR(BigFloat& P, BigFloat& Q, BigFloat& R, uint32_t a, uint32_t b, size_
     R = R0.mul(R1, p);
 
     iterations++;
-    printf("\r%llu steps out of %llu, %.2f%% complete", iterations, steps, ((double)iterations)/steps*100);
+    const size_t it = iterations;
+    printf("\r%llu steps out of %llu, %.2f%% complete", it, steps, ((double)it)/steps*100);
 }
 
 void Pi(size_t digits) {
@@ -128,7 +113,8 @@ void Pi(size_t digits) {
 
     size_t p = (digits + 8) / 9;
     size_t terms = (size_t)(p * 0.6346230241342037371474889163921741077188431452678) + 1;
-    fft_ensure_table(29);
+    fft_ensure_table(23);
+    ntt_ensure_table(29);
     steps = terms;
 
     //  Limit Exceeded
@@ -143,8 +129,7 @@ void Pi(size_t digits) {
     cout << "Summing Series... " << terms << " terms" << endl;
     BigFloat P, Q, R;
     Pi_BSR(P, Q, R, 0, (uint32_t)terms, p, 8);
-    printf("\r                                                  ");
-    printf("\r"); 
+    printf("\n");
     P = Q.mul(13591409).add(P, p);
     Q = Q.mul(4270934400);
     double time1 = wall_clock();

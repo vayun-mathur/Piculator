@@ -2,6 +2,10 @@
 
 #include <complex>
 #include "FFT.h"
+#include <algorithm>
+#include "NTT.h"
+#undef min
+#undef max
 
 using std::complex;
 
@@ -503,36 +507,63 @@ BigFloat BigFloat::mul(const BigFloat& x, size_t p) const {
         length <<= 1;
         k++;
     }
+    if (k > 20) {
+        //  Perform a convolution using NTT.
 
-    //  Perform a convolution using FFT.
-    //  Yeah, this is slow for small sizes, but it's asympotically optimal.
+        //  Allocate NTT arrays
+        auto Ta = (NNT_WORD*)malloc(length * sizeof(NNT_WORD));
+        auto Tb = (NNT_WORD*)malloc(length * sizeof(NNT_WORD));
 
-    //  3 digits per point is small enough to not encounter round-off error
-    //  until a transform size of 2^30.
-    //  A transform length of 2^29 allows for the maximum product size to be
-    //  2^29 * 3 = 1,610,612,736 decimal digits.
-    if (k > 29)
-        throw "FFT size limit exceeded.";
+        //  Make sure the twiddle table is big enough.
+        ntt_ensure_table(k);
 
-    //  Allocate FFT arrays
-    SIMD_delete deletor;
-    auto Ta = std::unique_ptr<__m128d[], SIMD_delete>((__m128d*)_mm_malloc(length * sizeof(__m128d), 16), deletor);
-    auto Tb = std::unique_ptr<__m128d[], SIMD_delete>((__m128d*)_mm_malloc(length * sizeof(__m128d), 16), deletor);
+        int_to_ntt(Ta, k, AT, AL);              //  Convert 1st operand
+        int_to_ntt(Tb, k, BT, BL);              //  Convert 2nd operand
+        ntt_forward(Ta, k);                     //  Transform 1st operand
+        ntt_forward(Tb, k);                     //  Transform 2nd operand
+        ntt_pointwise(Ta, Tb, k);               //  Pointwise multiply
+        ntt_inverse(Ta, k);                     //  Perform inverse transform.
+        ntt_to_int(Ta, k, z.T.get(), z.L);      //  Convert back to word array.
 
-    //  Make sure the twiddle table is big enough.
-    fft_ensure_table(k);
+        //  Check top word and correct length.
+        if (z.T[z.L - 1] == 0)
+            z.L--;
 
-    int_to_fft(Ta.get(), k, AT, AL);           //  Convert 1st operand
-    int_to_fft(Tb.get(), k, BT, BL);           //  Convert 2nd operand
-    fft_forward(Ta.get(), k);                //  Transform 1st operand
-    fft_forward(Tb.get(), k);                //  Transform 2nd operand
-    fft_pointwise(Ta.get(), Tb.get(), k);     //  Pointwise multiply
-    fft_inverse(Ta.get(), k);                //  Perform inverse transform.
-    fft_to_int(Ta.get(), k, z.T.get(), z.L);   //  Convert back to word array.
+        free(Ta);
+        free(Tb);
+    }
+    else {
 
-    //  Check top word and correct length.
-    if (z.T[z.L - 1] == 0)
-        z.L--;
+        //  Perform a convolution using FFT.
+        //  Yeah, this is slow for small sizes, but it's asympotically optimal.
+
+        //  3 digits per point is small enough to not encounter round-off error
+        //  until a transform size of 2^30.
+        //  A transform length of 2^29 allows for the maximum product size to be
+        //  2^29 * 3 = 1,610,612,736 decimal digits.
+
+        //  Allocate FFT arrays
+        auto Ta = (__m128d*)_mm_malloc(length * sizeof(__m128d), 16);
+        auto Tb = (__m128d*)_mm_malloc(length * sizeof(__m128d), 16);
+
+        //  Make sure the twiddle table is big enough.
+        fft_ensure_table(k);
+
+        int_to_fft(Ta, k, AT, AL);              //  Convert 1st operand
+        int_to_fft(Tb, k, BT, BL);              //  Convert 2nd operand
+        fft_forward(Ta, k);                     //  Transform 1st operand
+        fft_forward(Tb, k);                     //  Transform 2nd operand
+        fft_pointwise(Ta, Tb, k);               //  Pointwise multiply
+        fft_inverse(Ta, k);                     //  Perform inverse transform.
+        fft_to_int(Ta, k, z.T.get(), z.L);      //  Convert back to word array.
+
+        //  Check top word and correct length.
+        if (z.T[z.L - 1] == 0)
+            z.L--;
+
+        _mm_free(Ta);
+        _mm_free(Tb);
+    }
 
     return z;
 }
