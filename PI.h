@@ -21,6 +21,7 @@ using std::complex;
 #include "BigFloat.h"
 #include "FFT.h"
 #include "NTT.h"
+#include "Console.h"
 
 #include <chrono>
 
@@ -104,53 +105,80 @@ void Pi_BSR(BigFloat& P, BigFloat& Q, BigFloat& R, uint32_t a, uint32_t b, size_
 
     iterations++;
     const size_t it = iterations;
-    printf("\r%llu steps out of %llu, %.2f%% complete", it, steps, ((double)it)/steps*100);
+    std::string s = "\r\x1B[" + std::to_string(WHITE) + "m";
+    s += "Summing: ";
+    s += "\x1B[" + std::to_string(BRIGHT_CYAN) + "m";
+    s += "%.2f%%\t";
+    s += "\x1B[" + std::to_string(YELLOW) + "m";
+    s += "%llu/%llu";
+    s += "\033[0m";
+    printf(s.c_str(), ((double)it) / steps * 100, it, steps);
+    //printf_color(WHITE, "\rSumming ");
+    //printf_color(BRIGHT_CYAN, "%.2f%%, ", ((double)it) / steps * 100);
+    //printf_color(YELLOW, "%llu/%llu", it, steps);
 }
 
-void Pi(size_t digits) {
+void Pi(size_t digits, size_t threads) {
     //  The leading 3 doesn't count.
-    digits++;
 
-    size_t p = (digits + 8) / 9;
+    size_t p = (digits + 9) / 9;
     size_t terms = (size_t)(p * 0.6346230241342037371474889163921741077188431452678) + 1;
-    fft_ensure_table(23);
-    ntt_ensure_table(29);
-    steps = terms;
+    fft_ensure_table(29);
+    //ntt_ensure_table(29);
+    steps = terms-1;
 
     //  Limit Exceeded
     if ((uint32_t)terms != terms)
         throw "Limit Exceeded";
 
-    cout << "Computing Pi..." << endl;
-    cout << "Algorithm: Chudnovsky Formula" << endl << endl;
+    printf_color(WHITE, "Constant:\t");
+    printf_color(GREEN, "Pi\n");
+
+    printf_color(WHITE, "Algorithm:\t");
+    printf_color(YELLOW, "Chudnovsky (1988)\n\n");
+
+    setlocale(LC_NUMERIC, "");
+    printf_color(WHITE, "Decimal Digits:\t");
+    printf_color(BRIGHT_GREEN, "%s\n\n", print_num_commas(digits).c_str());
+
+    printf_color(WHITE, "Memory Mode:\t");
+    printf_color(RED, "RAM\n");
+
+    printf_color(WHITE, "# Threads:\t");
+    printf_color(BRIGHT_YELLOW, "%llu\n\n", threads);
+
+    printf_color(WHITE, "Begin Computation:\n\n");
+
+    printf_color(WHITE, "Summing Series...  %s\n", print_num_commas(terms).c_str());
 
     double time0 = wall_clock();
-
-    cout << "Summing Series... " << terms << " terms" << endl;
     BigFloat P, Q, R;
-    Pi_BSR(P, Q, R, 0, (uint32_t)terms, p, 8);
-    printf("\n");
+    Pi_BSR(P, Q, R, 0, (uint32_t)terms, p, threads);
     P = Q.mul(13591409).add(P, p);
     Q = Q.mul(4270934400);
     double time1 = wall_clock();
-    cout << "Time: " << time_str(time1 - time0) << endl;
 
-    cout << "Division... " << endl;
+    printf_color(WHITE, "\n");
+    printf_color(CYAN, "%s\n", time_str(time1 - time0).c_str());
+
+
+    printf_color(WHITE, "Division...\n");
     P = Q.div(P, p);
     double time2 = wall_clock();
-    cout << "Time: " << time_str(time2 - time1) << endl;
+    printf_color(CYAN, "%s\n", time_str(time2 - time1).c_str());
 
-    cout << "InvSqrt... " << endl;
+    printf_color(WHITE, "InvSqrt...\n");
     Q = invsqrt(10005, p);
     double time3 = wall_clock();
-    cout << "Time: " << time_str(time3 - time2) << endl;
+    printf_color(CYAN, "%s\n", time_str(time3 - time2).c_str());
 
-    cout << "Final Multiply... " << endl;
+    printf_color(WHITE, "Final Multiply...\n");
     P = P.mul(Q, p);
     double time4 = wall_clock();
-    cout << "Time: " << time_str(time4 - time3) << endl;
+    printf_color(CYAN, "%s\n", time_str(time4 - time3).c_str());
 
-    cout << "Total Time = " << time_str(time4 - time0) << endl << endl;
+    printf_color(WHITE, "Total Time:\t");
+    printf_color(CYAN, "%s\n\n", time_str(time4 - time0).c_str());
 
-    dump_to_file("pi.txt", P.to_string(digits));
+    dump_to_file("pi.txt", P.to_string(digits+1));
 }

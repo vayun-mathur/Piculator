@@ -507,7 +507,7 @@ BigFloat BigFloat::mul(const BigFloat& x, size_t p) const {
         length <<= 1;
         k++;
     }
-    if (k > 20) {
+    if (k > 29) {
         //  Perform a convolution using NTT.
 
         //  Allocate NTT arrays

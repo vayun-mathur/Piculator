@@ -24,6 +24,9 @@
     <ClInclude Include="NTT.h">
       <Filter>Multiplication</Filter>
     </ClInclude>
+    <ClInclude Include="Console.h">
+      <Filter>Main</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="main.cpp">

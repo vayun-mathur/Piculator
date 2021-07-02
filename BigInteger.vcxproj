@@ -146,6 +146,7 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClInclude Include="BigFloat.h" />
+    <ClInclude Include="Console.h" />
     <ClInclude Include="NTT.h" />
     <ClInclude Include="PI.h" />
     <ClInclude Include="FFT.h" />
