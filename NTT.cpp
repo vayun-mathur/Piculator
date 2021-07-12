@@ -1,6 +1,7 @@
 #include <intrin.h>
 #include <immintrin.h>
 #include <memory>
+#include <map>
 #include "NTT.h"
 #pragma intrinsic(_umul128)
 #pragma intrinsic(_udiv128)
@@ -17,6 +18,7 @@ void NNT::_free()
 
 void NNT::_alloc(NNT_WORD n)
 {
+	/*
 	WW = new NNT_WORD[n];
 	WW[0] = 1;
 	for (size_t i = 1; i < n; i++) {
@@ -28,7 +30,7 @@ void NNT::_alloc(NNT_WORD n)
 	for (size_t i = 1; i < n; i++) {
 		iWW[i] = modmul(iWW[i - 1], iW);
 	}
-
+	*/
 	NN = n;
 }
 
@@ -36,25 +38,31 @@ void NNT::_alloc(NNT_WORD n)
 void NNT::NTT(NNT_WORD* dst, NNT_WORD* src, NNT_WORD n)
 {
 	if (n > 0) init(n);
-	NTT_fast(dst, src, N, WW, 1);
+	NTT_fast(dst, src, N, W);
 }
 
 
 void NNT::iNTT(NNT_WORD* dst, NNT_WORD* src, NNT_WORD n)
 {
 	if (n > 0) init(n);
-	NTT_fast(dst, src, N, iWW, 1);
+	NTT_fast(dst, src, N, iW);
 	for (NNT_WORD i = 0; i < N; i++) dst[i] = modmul(dst[i], rN);
 }
-
-NNT_WORD powmod(NNT_WORD a, NNT_WORD b, NNT_WORD p) {
-	NNT_WORD res = 1;
-	while (b)
+NNT_WORD modmul(NNT_WORD a, NNT_WORD b, NNT_WORD p)
+{
+	uint64_t r, s = _umul128(a, b, &r);
+	(void)_udiv128(r, s, p, &r);
+	return r;
+}
+NNT_WORD modpow(NNT_WORD a, NNT_WORD b, NNT_WORD p) {
+	NNT_WORD result = 1;
+	while (b > 0) {
 		if (b & 1)
-			res = NNT_WORD(res * 1ll * a % p), --b;
-		else
-			a = NNT_WORD(a * 1ll * a % p), b >>= 1;
-	return res;
+			result = modmul(result, a, p);
+		b >>= 1;
+		a = modmul(a, a, p);
+	}
+	return result;
 }
 
 #include <vector>
@@ -74,15 +82,50 @@ NNT_WORD generator(NNT_WORD p) {
 	for (NNT_WORD res = 2; res <= p; ++res) {
 		bool ok = true;
 		for (size_t i = 0; i < fact.size() && ok; ++i)
-			ok &= powmod(res, phi / fact[i], p) != 1;
+			ok &= modpow(res, phi / fact[i], p) != 1;
 		if (ok)  return res;
 	}
 	return -1;
 }
 
+std::map<int, NNT_WORD> primes = {
+	{11, 9223372036854675457},
+{12, 9223372036854497281},
+{13, 9223372036854497281},
+{14, 9223372036854497281},
+{15, 9223372036853661697},
+{16, 9223372036853661697},
+{17, 9223372036844421121},
+{18, 9223372036836950017},
+{19, 9223372036836950017},
+{20, 9223372036836950017},
+{21, 9223372036752015361},
+{22, 9223372036737335297},
+{23, 9223372036737335297},
+{24, 9223372036737335297},
+{25, 9223372036083023873},
+{26, 9223372035915251713},
+{27, 9223372035915251713},
+{28, 9223372034170421249},
+{29, 9223372034170421249},
+{30, 9223372006790004737},
+{31, 9223372006790004737},
+{32, 9223372006790004737},
+{33, 9223371564408373249},
+{34, 9223371280940531713},
+{35, 9223371280940531713},
+{36, 9223371280940531713},
+{37, 9223369837831520257},
+{38, 9223369837831520257},
+{39, 9223369837831520257},
+{40, 9223369837831520257},
+{41, 9223369837831520257},
+{42, 9223341250529198081}
+};
+
 bool PrimeQ(NNT_WORD w) {
-	unsigned int s = ((unsigned int)sqrt(w)+1);
-	for (unsigned int i = 2; i <= s && i!=0; i++) {
+	NNT_WORD s = ((NNT_WORD)sqrt(w) + 1);
+	for (NNT_WORD i = 2; i <= s; i++) {
 		if (w % i == 0) return false;
 	}
 	return true;
@@ -91,10 +134,16 @@ bool PrimeQ(NNT_WORD w) {
 
 bool NNT::init(NNT_WORD n)
 {
-	L = (1ull << (32 - (int)round(log2(n)))) - 1;
-	while(PrimeQ(L * n + 1) == false) L--;
+	/*
+	L = (1ull << (64 - (int)round(log2(n)))) - 1;
+	while (PrimeQ(L * n + 1) == false) L--;
 	p = L * n + 1;
 	r = generator(p);
+	printf("Prime: %llu\n", p);
+	*/
+	p = primes[(int)round(log2(n))];
+	r = generator(p);
+	L = (p - 1) / n;
 
 	N = n;                // Size of vectors [NNT_WORDs]
 	W = modpow(r, L);  // Wn for NTT
@@ -206,18 +255,16 @@ NNT_WORD NNT::modpow(NNT_WORD a, NNT_WORD b) {
 	return result;
 }
 
-#include <map>
 
 std::map<int, NNT> ntts;
 
 void ntt_ensure_table(int k)
 {
-	if (k <= 20) return;
+	if (k <= 26) return;
 	if (ntts.find(k) != ntts.end()) return;
 	ntt_ensure_table(k - 1);
 	ntts.insert({ k, NNT() });
 	ntts[k].init(1ull << k);
-	printf("Calculated\n");
 }
 
 void ntt_forward(NNT_WORD* T, int k)

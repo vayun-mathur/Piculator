@@ -24,6 +24,7 @@
 template<typename... Args>
 void printf_color(int color_code, std::string s, Args ... args) {
 	printf(("\x1B[" + std::to_string(color_code) + "m" + s + "\033[0m").c_str(), args...);
+    fflush(stdout);
 }
 
 std::string print_num_commas(uint64_t n) {

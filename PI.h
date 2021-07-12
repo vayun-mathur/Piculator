@@ -58,6 +58,8 @@ std::string time_str(double s) {
 std::atomic_uint64_t iterations;
 size_t steps;
 
+double time_init;
+
 void Pi_BSR(BigFloat& P, BigFloat& Q, BigFloat& R, uint32_t a, uint32_t b, size_t p, int tds=1) {
     //  Binary Splitting recursion for the Chudnovsky Formula.
 
@@ -86,9 +88,9 @@ void Pi_BSR(BigFloat& P, BigFloat& Q, BigFloat& R, uint32_t a, uint32_t b, size_
     uint32_t m = (a + b) / 2;
 
     BigFloat P0, Q0, R0, P1, Q1, R1;
-    if (tds == 1) {
-        Pi_BSR(P0, Q0, R0, a, m, p);
-        Pi_BSR(P1, Q1, R1, m, b, p);
+    if (tds == 1 || b-a > 10'000'000) {
+        Pi_BSR(P0, Q0, R0, a, m, p, tds);
+        Pi_BSR(P1, Q1, R1, m, b, p, tds);
     }
     else {
         int tds0 = tds / 2;
@@ -108,14 +110,24 @@ void Pi_BSR(BigFloat& P, BigFloat& Q, BigFloat& R, uint32_t a, uint32_t b, size_
     std::string s = "\r\x1B[" + std::to_string(WHITE) + "m";
     s += "Summing: ";
     s += "\x1B[" + std::to_string(BRIGHT_CYAN) + "m";
-    s += "%.2f%%\t";
+    s += "%.2f%%        ";
     s += "\x1B[" + std::to_string(YELLOW) + "m";
     s += "%llu/%llu";
-    s += "\033[0m";
-    printf(s.c_str(), ((double)it) / steps * 100, it, steps);
-    //printf_color(WHITE, "\rSumming ");
-    //printf_color(BRIGHT_CYAN, "%.2f%%, ", ((double)it) / steps * 100);
-    //printf_color(YELLOW, "%llu/%llu", it, steps);
+    s += "\x1B[" + std::to_string(WHITE) + "m";
+    s += "        Time remaining: ";
+    s += "\x1B[" + std::to_string(BRIGHT_BLUE) + "m";
+    s += " %s";
+    s += "\033[0m                ";
+
+    double completion_frac = ((double)it) / steps;
+
+    double t = wall_clock();
+    double elapsed_time = t - time_init;
+    double full_time = elapsed_time / completion_frac;
+    double time_left = full_time * (1 - completion_frac);
+
+    printf(s.c_str(), completion_frac * 100, it, steps, time_str(time_left).c_str());
+    fflush(stdout);
 }
 
 void Pi(size_t digits, size_t threads) {
@@ -123,8 +135,8 @@ void Pi(size_t digits, size_t threads) {
 
     size_t p = (digits + 9) / 9;
     size_t terms = (size_t)(p * 0.6346230241342037371474889163921741077188431452678) + 1;
-    fft_ensure_table(29);
-    //ntt_ensure_table(29);
+    fft_ensure_table(26);
+    ntt_ensure_table(29);
     steps = terms-1;
 
     //  Limit Exceeded
@@ -153,7 +165,8 @@ void Pi(size_t digits, size_t threads) {
 
     double time0 = wall_clock();
     BigFloat P, Q, R;
-    Pi_BSR(P, Q, R, 0, (uint32_t)terms, p, threads);
+    time_init = time0;
+    Pi_BSR(P, Q, R, 0, (uint32_t)terms, p, (int)threads);
     P = Q.mul(13591409).add(P, p);
     Q = Q.mul(4270934400);
     double time1 = wall_clock();
