@@ -31,6 +31,11 @@ The main features of Piculator are:
 
 [Source Code](https://github.com/vayun-mathur/Piculator)
 
+## Other Links
+
++ [Algorithms and Internals](./algorithms.md)
++ [Technology](./technology.md)
+
 ## Benchmarks
 
 Computations of Pi to various sizes. The timings do not include the time taken to write the digits to disk.
