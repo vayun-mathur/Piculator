@@ -1,37 +1,49 @@
-## Welcome to GitHub Pages
+## The Piculator
 
-You can use the [editor on GitHub](https://github.com/vayun-mathur/Piculator/edit/gh-pages/index.md) to maintain and preview the content for your website in Markdown files.
+The best completely open-source Pi calculator
 
-Whenever you commit to this repository, GitHub Pages will run [Jekyll](https://jekyllrb.com/) to rebuild the pages in your site, from the content in your Markdown files.
+The Piculator is a program that can compute Pi to billions of digits.
 
-### Markdown
+## Features
 
-Markdown is a lightweight and easy-to-use syntax for styling your writing. It includes conventions for
+The main features of Piculator are:
 
-```markdown
-Syntax highlighted code block
++ Able to compute Pi to billions of digits.
++ Fast Large Multiplication  The core of this program is the O(N log N) multiplication algorithms it uses
++ MultiThreaded  Multithreading used to utilize all cores of a processor, still needs some work
++ Vectorized  Able to fully utilize SSE3 instructions, still need to work on AVX, AVX256, etc...
 
-# Header 1
-## Header 2
-### Header 3
+## Download
 
-- Bulleted
-- List
+#### Latest Release
 
-1. Numbered
-2. List
+| OS      	| Download Link                                                                                                      	| Size  	|
+|---------	|--------------------------------------------------------------------------------------------------------------------	|-------	|
+| Windows 	| [Piculator v0.4.1 Windows Edition](https://github.com/vayun-mathur/Piculator/releases/download/v0.4/Piculator.exe) 	| 59 KB 	|
 
-**Bold** and _Italic_ and `Code` text
+#### System Requirements
 
-[Link](url) and ![Image](src)
-```
++ Windows 10
++ 64 bit OS
++ Processor with SSE3 instruction set
 
-For more details see [GitHub Flavored Markdown](https://guides.github.com/features/mastering-markdown/).
+#### Other Downloads
 
-### Jekyll Themes
+[Source Code](https://github.com/vayun-mathur/Piculator)
 
-Your Pages site will use the layout and styles from the Jekyll theme you have selected in your [repository settings](https://github.com/vayun-mathur/Piculator/settings/pages). The name of this theme is saved in the Jekyll `_config.yml` configuration file.
+## Benchmarks
 
-### Support or Contact
+Computations of Pi to various sizes. The timings do not include the time taken to write the digits to disk.
 
-Having trouble with Pages? Check out our [documentation](https://docs.github.com/categories/github-pages-basics/) or [contact support](https://support.github.com/contact) and we’ll help you sort it out.
+| Processor       	|       Intel Core i7 10510U      	|
+|-----------------	|:-------------------------------:	|
+| Generation      	|         Intel Comet Lake        	|
+| Cores/Threads   	|               4/8               	|
+| Clock Speed     	|             1.8 GHz             	|
+| Memory          	|              20 GB              	|
+| Version         	|              v0.4.1             	|
+| Instruction Set 	|               SSE3              	|
+|       1,000,000 	|            3 seconds            	|
+|      10,000,000 	|            35 seconds           	|
+|     100,000,000 	|      8 minutes, 46 seconds      	|
+|   1,000,000,000 	| 18 hours, 8 minutes, 51 seconds 	|
