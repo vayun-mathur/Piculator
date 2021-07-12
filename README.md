@@ -33,8 +33,8 @@ The main features of Piculator are:
 
 ## Other Links
 
-+ [Algorithms and Internals](./algorithms.md)
-+ [Technology](./technology.md)
++ [Algorithms and Internals](https://vayun-mathur.github.io/Piculator/algorithms.md)
++ [Technology](https://vayun-mathur.github.io/Piculator/technology.md)
 
 ## Benchmarks
 
