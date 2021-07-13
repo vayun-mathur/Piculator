@@ -7,62 +7,17 @@ Back to [Algorithms and Internals](../algorithms.md)
 The representation of large numbers [is explained here](./number.md)
 
 Adding and subtracting numbers in that representation is pretty much identical to how you would do it with decimal numbers, but instead
-of base 10, it is base 10^9. It's pretty basic so I'll just move on to the implementation now.
+of base 10, it is base 2^32. It's pretty basic so I'll just move on to the implementation now.
 
 ### C and C++
 
-One of the nice things about using base 10^9 is the ease of addition and carrying. This is because even with the largest 
-one digit addition (10^9 - 1 + 10^9 - 1), the result does not overflow. This means that you should carry if the result of the addition is
-greater than 10^9, and if it is, you should subtract 10^9 from the result to get the final digit at that location.
+In C++, it is not easy to tell when an overflow has occured in an addition, especially when you have a carry flag to deal with as well.
 
-Here is a snippet from the addition code of the Piculator:
-
-```c++
-int64_t top = std::max(x.exp + x.L, y.exp + y.L);
-int64_t bot = std::min(x.exp, y.exp);
-
-uint32_t carry = 0;
-for (size_t c = 0; bot < top; bot++, c++) {
-    uint32_t word = x.word_at(bot) + y.word_at(bot) + carry;
-    carry = 0;
-    if (word >= 1'000'000'000) {
-        word -= 1'000'000'000;
-        carry = 1;
-    }
-    z.T[c] = word;
-}
-```
-
-x and y are the inputs, and z is the output.
-
-
-The .word_at() function gets the word at a certain magnitude (not index of array),
-returning zero if there is no number in the array cooresponding with that magnitude.
-This is the equivilant of adding padding zeroes on either side of the numbers so that they line up.
-
-Demonstration:
-
-Original
-```
-    3.566  
-+1235.2
-```
-In this situation, some of the columns don't have values from both numbers
-
-Padded
-```
- 0003.566  
-+1235.200
-```
-In this situation, all of the columns have values from both numbers
+Therefore, the addition code in the Piculator makes use of compiler intrinsics to use useful assembly instructions for this purpose.
 
 ### Assembly
 
-I am writing this section for the situation in which I switch to using base 2^32.
-
-In this case, I would not be able to use the method described in the C and C++ section for addition due to overflow.
-
-For this, you will need to use assembly language. The `add` instruction in assembly sets the carry flag when the sum overflows.
+The `add` instruction in assembly sets the carry flag when the sum overflows.
 The `adc` instruction (add with carry) is identical, but it also adds in the carry bit flag to the sum.
 
 Adding a pair of large numbers in base 2^32 would simply require chaining the adc instruction.
@@ -85,9 +40,45 @@ It would look something like this: (where r8 and r9 are the locations of the add
 
 This could easily be converted to 64 bit too.
 
+#### Compiler Intrinsics
+
+Due to the fact that inline assembly is not supported on the MSVC compiler (which I am using).
+This code is instead implemented with compiler intrinsics.
+
+Here is a snippet of the addition code from the Piculator:
+
+```c++
+int64_t top = std::max(exp + L, x.exp + x.L);
+int64_t bot = std::min(exp, x.exp);
+uint32_t carry = 0;
+for (size_t c = 0; bot < top; bot++, c++) {
+    carry = _addcarry_u32(carry, word_at(bot), x.word_at(bot), &z.T[c]);
+}
+```
+
+The .word_at() function gets the word at a certain magnitude (not index of array),
+returning zero if there is no number in the array cooresponding with that magnitude.
+This is the equivilant of adding padding zeroes on either side of the numbers so that they line up.
+
+Demonstration:
+
+Original
+```
+    3.566  
++1235.2
+```
+In this situation, some of the columns don't have values from both numbers
+
+Padded
+```
+ 0003.566  
++1235.200
+```
+In this situation, all of the columns have values from both numbers
+
 ## Subtraction
 
-Subtraction is similar to addition, but involves checking for underflow instead of overflow, and borrowing instead of carrying.
+Subtraction is similar to addition, but requires subtraction and borrowing instead of addition and carrying.
 
 ## Parallel Addition
 

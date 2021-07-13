@@ -4,15 +4,14 @@ Back to [Algorithms and Internals](../algorithms.md)
 
 ## Large Float Representation
 
-The Piculator program represents floating point numbers in the following format:
+The Piculator program represents floating point numbers in base 2^32 numbers stored in arrays of 32-bit integers in little-endian order
 
     BigFloat = sign * ( A[0] + A[1]*base^1 + A[2]*base^2 + A[3]*base^3 + ... ) * base^exp
-
-The base of the BigFloat object is 10^9. This is done to make it easier to display BigFloats in decimal format.
 
 The array "A" is the mantissa of the BigFloat object. It is stored in little-endian order so that:
 + Increasing address leads to increasing "magnitude" of digits. (A[0] is the one's digit. A[1] is the 10^9's digit... etc...)
 + Carry-propagation goes in the direction of increasing address.
++ A 32-bit based number would have the exact same binary representation in memory
 
 The array "A" is an array of unsigned 32-bit integers. This is because the original Piculator was a 32 bit program, and this has not
 been updated. Changing this will happen, but it doesn't really matter that much, since the most time consuming operations are not
@@ -36,6 +35,6 @@ Advantages of Base 2^32
 + Less memory usage (2^32 is larger than 10^9, so it takes less space to store)
 + Add with carry can use the adc assembly instruction
 
-For the Piculator, I chose base 10^9 for the purpose of being easily converted to base 10 for writing the final number to the disk.
+For the Piculator, I chose base 2^32 for the reasons listed above.
 
 This may end up changing in the future

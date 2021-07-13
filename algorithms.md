@@ -6,6 +6,7 @@ Back to [Homepage](./index.md)
 + [Large Multiplication](./algorithms/multiplication.md)
 + [Inverse Square Root](./algorithms/invsqrt.md)
 + [Division and Reciprocal](./algorithms/division.md)
++ [Radix Conversion](./algorithms/radix.md)
 + [Binary Splitting](./algorithms/binary-splitting.md)
 
 ## Implementation (v0.4.1)
