@@ -196,17 +196,15 @@ void int_to_fft(__m128d* T, int k, const uint32_t* A, size_t AL) {
     //  Since there are 9 digits per word and we want to put 3 digits per
     //  point, the length of the transform must be at least 3 times the word
     //  length of the input.
-    if (fft_length < 3 * AL)
+    if (fft_length < 2 * AL)
         throw "FFT length is too small.";
 
     //  Convert
     for (size_t c = 0; c < AL; c++) {
         uint32_t word = A[c];
 
-        *T++ = _mm_set_sd(word % 1000);
-        word /= 1000;
-        *T++ = _mm_set_sd(word % 1000);
-        word /= 1000;
+        *T++ = _mm_set_sd(word % 65536);
+        word /= 65536;
         *T++ = _mm_set_sd(word);
     }
 
@@ -229,7 +227,7 @@ void fft_to_int(__m128d* T, int k, uint32_t* A, size_t AL) {
     //  Since there are 9 digits per word and we want to put 3 digits per
     //  point, the length of the transform must be at least 3 times the word
     //  length of the input.
-    if (fft_length < 3 * AL)
+    if (fft_length < 2 * AL)
         throw "FFT length is too small.";
 
     //  Round and carry out.
@@ -242,20 +240,14 @@ void fft_to_int(__m128d* T, int k, uint32_t* A, size_t AL) {
         f_point = ((double*)T++)[0] * scale;    //  Load and scale
         i_point = (uint64_t)(f_point + 0.5);    //  Round
         carry += i_point;                       //  Add to carry
-        word = carry % 1000;                    //  Get 3 digits.
-        carry /= 1000;
+        word = carry % 65536;                    //  Get 3 digits.
+        carry /= 65536;
 
         f_point = ((double*)T++)[0] * scale;    //  Load and scale
         i_point = (uint64_t)(f_point + 0.5);    //  Round
         carry += i_point;                       //  Add to carry
-        word += (carry % 1000) * 1000;          //  Get 3 digits.
-        carry /= 1000;
-
-        f_point = ((double*)T++)[0] * scale;    //  Load and scale
-        i_point = (uint64_t)(f_point + 0.5);    //  Round
-        carry += i_point;                       //  Add to carry
-        word += (carry % 1000) * 1000000;       //  Get 3 digits.
-        carry /= 1000;
+        word += (carry % 65536) * 65536;          //  Get 3 digits.
+        carry /= 65536;
 
         A[c] = word;
     }

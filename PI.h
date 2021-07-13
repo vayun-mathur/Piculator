@@ -130,11 +130,13 @@ void Pi_BSR(BigFloat& P, BigFloat& Q, BigFloat& R, uint32_t a, uint32_t b, size_
     fflush(stdout);
 }
 
-void Pi(size_t digits, size_t threads) {
+void Pi(size_t decimal_digits, size_t threads) {
     //  The leading 3 doesn't count.
 
-    size_t p = (digits + 9) / 9;
-    size_t terms = (size_t)(p * 0.6346230241342037371474889163921741077188431452678) + 1;
+    size_t hex_digits = decimal_digits * log(10)/log(16);
+    size_t p = (hex_digits + 9) / 9;
+    size_t p_dec = (decimal_digits + 9) / 9;
+    size_t terms = (size_t)(p_dec * 0.6346230241342037371474889163921741077188431452678) + 1;
     fft_ensure_table(26);
     ntt_ensure_table(29);
     steps = terms-1;
@@ -151,7 +153,9 @@ void Pi(size_t digits, size_t threads) {
 
     setlocale(LC_NUMERIC, "");
     printf_color(WHITE, "Decimal Digits:\t");
-    printf_color(BRIGHT_GREEN, "%s\n\n", print_num_commas(digits).c_str());
+    printf_color(BRIGHT_GREEN, "%s\n", print_num_commas(decimal_digits).c_str());
+    printf_color(WHITE, "Hex Digits:\t");
+    printf_color(BRIGHT_GREEN, "%s\n\n", print_num_commas(hex_digits).c_str());
 
     printf_color(WHITE, "Memory Mode:\t");
     printf_color(RED, "RAM\n");
@@ -190,8 +194,13 @@ void Pi(size_t digits, size_t threads) {
     double time4 = wall_clock();
     printf_color(CYAN, "%s\n", time_str(time4 - time3).c_str());
 
-    printf_color(WHITE, "Total Time:\t");
-    printf_color(CYAN, "%s\n\n", time_str(time4 - time0).c_str());
+    printf_color(WHITE, "Base Conversion...\n");
+    std::string str = P.to_string_dec(decimal_digits);
+    double time5 = wall_clock();
+    printf_color(CYAN, "%s\n", time_str(time5 - time4).c_str());
 
-    dump_to_file("pi.txt", P.to_string(digits+1));
+    printf_color(WHITE, "Total Time:\t");
+    printf_color(CYAN, "%s\n\n", time_str(time5 - time0).c_str());
+    dump_to_file("pi.txt", str);
+
 }

@@ -295,13 +295,11 @@ void int_to_ntt(NNT_WORD* T, int k, const uint32_t* A, size_t AL)
 {
 	for (size_t i = 0; i < AL; i++) {
 		uint32_t X = A[i];
-		T[3 * i] = X % 1000;
-		X /= 1000;
-		T[3 * i + 1] = X % 1000;
-		X /= 1000;
-		T[3 * i + 2] = X % 1000;
+		T[2 * i] = X % 65536;
+		X /= 65536;
+		T[2 * i + 1] = X % 65536;
 	}
-	for (size_t i = 3 * AL; i < (1ull << k); i++) {
+	for (size_t i = 2 * AL; i < (1ull << k); i++) {
 		T[i] = 0;
 	}
 }
@@ -315,24 +313,20 @@ void ntt_to_int(NNT_WORD* T, int k, uint32_t* A, size_t AL)
 	//  Since there are 9 digits per word and we want to put 3 digits per
 	//  point, the length of the transform must be at least 3 times the word
 	//  length of the input.
-	if (fft_length < 3 * AL)
+	if (fft_length < 2 * AL)
 		throw "FFT length is too small.";
 
 	uint64_t carry = 0;
 	for (size_t c = 0; c < AL; c++) {
 		uint32_t word;
 
-		carry += T[3 * c];                        //  Add to carry
-		word = carry % 1000;                    //  Get 3 digits.
-		carry /= 1000;
+		carry += T[2 * c];                        //  Add to carry
+		word = carry % 65536;                    //  Get 3 digits.
+		carry /= 65536;
 
-		carry += T[3 * c + 1];                  //  Add to carry
-		word += (carry % 1000) * 1000;          //  Get 3 digits.
-		carry /= 1000;
-
-		carry += T[3 * c + 2];                  //  Add to carry
-		word += (carry % 1000) * 1000000;       //  Get 3 digits.
-		carry /= 1000;
+		carry += T[2 * c + 1];                  //  Add to carry
+		word += (carry % 65536) * 65536;          //  Get 3 digits.
+		carry /= 65536;
 
 		A[c] = word;
 	}

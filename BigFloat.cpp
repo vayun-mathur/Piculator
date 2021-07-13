@@ -4,6 +4,8 @@
 #include "FFT.h"
 #include <algorithm>
 #include "NTT.h"
+#include <intrin.h>
+#include <iomanip>
 #undef min
 #undef max
 
@@ -77,144 +79,17 @@ BigFloat::BigFloat(uint32_t x, bool sign_)
 }
 ////////////////////////////////////////////////////////////////////////////////
 //  String Conversion
-int64_t BigFloat::to_string_trimmed(size_t digits, std::string& str) const {
-    //  Converts this object to a string with "digits" significant figures.
-
-    //  After calling this function, the following expression is equal to the
-    //  numeric value of this object. (after truncation of precision)
-    //      str + " * 10^" + (return value)
-
-    if (L == 0) {
-        str = "0";
-        return 0;
+std::string BigFloat::to_string_dec(size_t digits) const
+{
+    BigFloat temp = *this;
+    std::stringstream s;
+    s << temp.T[temp.L-1] << '.';
+    for (int i = 0; i < (digits+8)/9; i++) {
+        temp.T[temp.L - 1] = 0;
+        temp = temp.mul(1'000'000'000);
+        s << std::setw(9) << std::setfill('0') << temp.T[temp.L - 1];
     }
-
-    //  Collect operands
-    int64_t exponent = exp;
-    size_t length = L;
-    uint32_t* ptr = T.get();
-
-    if (digits == 0) {
-        //  Use all digits.
-        digits = length * 9;
-    }
-    else {
-        //  Truncate precision
-        size_t words = (digits + 17) / 9;
-        if (words < length) {
-            size_t chop = length - words;
-            exponent += chop;
-            length = words;
-            ptr += chop;
-        }
-    }
-    exponent *= 9;
-
-    //  Build string
-    char buffer[] = "012345678";
-    str.clear();
-    size_t c = length;
-    while (c-- > 0) {
-        uint32_t word = ptr[c];
-        for (int i = 8; i >= 0; i--) {
-            buffer[i] = word % 10 + '0';
-            word /= 10;
-        }
-        str += buffer;
-    }
-
-    //  Count leading zeros
-    size_t leading_zeros = 0;
-    while (str[leading_zeros] == '0')
-        leading_zeros++;
-    digits += leading_zeros;
-
-    //  Truncate
-    if (digits < str.size()) {
-        exponent += str.size() - digits;
-        str.resize(digits);
-    }
-
-    return exponent;
-}
-std::string BigFloat::to_string(size_t digits) const {
-    //  Convert this number to a string. Auto-select format type.
-    if (L == 0)
-        return "0.";
-
-    int64_t mag = exp + L;
-
-    //  Use scientific notation if out of range.
-    if (mag > 1 || mag < 0)
-        return to_string_sci();
-
-    //  Convert
-    std::string str;
-    int64_t exponent = to_string_trimmed(digits, str);
-
-    //  Less than 1
-    if (mag == 0) {
-        if (sign)
-            return std::string("0.") + str;
-        else
-            return std::string("-0.") + str;
-    }
-
-    //  Get a string with the digits before the decimal place.
-    std::string before_decimal = std::to_string((long long)T[L - 1]);
-
-    //  Nothing after the decimal place.
-    if (exponent >= 0) {
-        if (sign) {
-            return before_decimal + ".";
-        }
-        else {
-            return std::string("-") + before_decimal + ".";
-        }
-    }
-
-    //  Get digits after the decimal place.
-    std::string after_decimal = str.substr((size_t)(str.size() + exponent), (size_t)-exponent);
-
-    if (sign) {
-        return before_decimal + "." + after_decimal;
-    }
-    else {
-        return std::string("-") + before_decimal + "." + after_decimal;
-    }
-}
-std::string BigFloat::to_string_sci(size_t digits) const {
-    //  Convert to string in scientific notation.
-    if (L == 0)
-        return "0.";
-
-    //  Convert
-    std::string str;
-    int64_t exponent = to_string_trimmed(digits, str);
-
-    //  Strip leading zeros.
-    {
-        size_t leading_zeros = 0;
-        while (str[leading_zeros] == '0')
-            leading_zeros++;
-        str = &str[leading_zeros];
-    }
-
-    //  Insert decimal place
-    exponent += str.size() - 1;
-    str = str.substr(0, 1) + "." + &str[1];
-
-    //  Add exponent
-    if (exponent != 0) {
-        str += " * 10^";
-        str += std::to_string(exponent);
-    }
-
-    //  Add sign
-    if (!sign)
-        str = std::string("-") + str;
-
-    return str;
+    return s.str().substr(0, 2+digits);
 }
 ////////////////////////////////////////////////////////////////////////////////
 //  Getters
@@ -283,8 +158,8 @@ BigFloat BigFloat::mul(uint32_t x) const {
     uint64_t carry = 0;
     for (size_t c = 0; c < L; c++) {
         carry += (uint64_t)T[c] * x;                //  Multiply and add to carry
-        z.T[c] = (uint32_t)(carry % 1000000000);    //  Store bottom 9 digits
-        carry /= 1000000000;                        //  Shift down the carry
+        z.T[c] = (uint32_t)(carry % 4294967296);    //  Store bottom 9 digits
+        carry >>= 32;                        //  Shift down the carry
     }
 
     //  Carry out
@@ -332,13 +207,7 @@ BigFloat BigFloat::uadd(const BigFloat& x, size_t p) const {
     //  Add
     uint32_t carry = 0;
     for (size_t c = 0; bot < top; bot++, c++) {
-        uint32_t word = word_at(bot) + x.word_at(bot) + carry;
-        carry = 0;
-        if (word >= 1000000000) {
-            word -= 1000000000;
-            carry = 1;
-        }
-        z.T[c] = word;
+        carry = _addcarry_u32(carry, word_at(bot), x.word_at(bot), &z.T[c]);
     }
 
     //  Carry out
@@ -389,13 +258,7 @@ BigFloat BigFloat::usub(const BigFloat& x, size_t p) const {
     //  Subtract
     int32_t carry = 0;
     for (size_t c = 0; bot < top; bot++, c++) {
-        int32_t word = (int32_t)word_at(bot) - (int32_t)x.word_at(bot) - carry;
-        carry = 0;
-        if (word < 0) {
-            word += 1000000000;
-            carry = 1;
-        }
-        z.T[c] = word;
+        carry = _subborrow_u32(carry, word_at(bot), x.word_at(bot), &z.T[c]);
     }
 
     //  Strip leading zeros
@@ -503,7 +366,7 @@ BigFloat BigFloat::mul(const BigFloat& x, size_t p) const {
     //  Determine minimum FFT size.
     int k = 0;
     size_t length = 1;
-    while (length < 3 * z.L) {
+    while (length < 2 * z.L) {
         length <<= 1;
         k++;
     }
@@ -594,17 +457,17 @@ BigFloat BigFloat::rcp(size_t p) const {
         //  Convert number to floating-point.
         double val = AT[0];
         if (AL >= 2)
-            val += AT[1] * 1000000000.;
+            val += AT[1] * 4294967296.;
         if (AL >= 3)
-            val += AT[2] * 1000000000000000000.;
+            val += AT[2] * 4294967296. * 4294967296.;
 
         //  Compute reciprocal.
         val = 1. / val;
         Aexp = -Aexp;
 
         //  Scale
-        while (val < 1000000000.) {
-            val *= 1000000000.;
+        while (val < 4294967296.) {
+            val *= 4294967296.;
             Aexp--;
         }
 
@@ -615,8 +478,8 @@ BigFloat BigFloat::rcp(size_t p) const {
         out.sign = sign;
 
         out.T = std::unique_ptr<uint32_t[]>(new uint32_t[2]);
-        out.T[0] = (uint32_t)(val64 % 1000000000);
-        out.T[1] = (uint32_t)(val64 / 1000000000);
+        out.T[0] = (uint32_t)(val64 % 4294967296);
+        out.T[1] = (uint32_t)(val64 / 4294967296);
         out.L = 2;
         out.exp = Aexp;
 
@@ -655,8 +518,8 @@ BigFloat invsqrt(uint32_t x, size_t p) {
         int64_t exponent = 0;
 
         //  Scale
-        while (val < 1000000000.) {
-            val *= 1000000000.;
+        while (val < 4294967296.) {
+            val *= 4294967296.;
             exponent--;
         }
 
@@ -667,8 +530,8 @@ BigFloat invsqrt(uint32_t x, size_t p) {
         out.sign = true;
 
         out.T = std::unique_ptr<uint32_t[]>(new uint32_t[2]);
-        out.T[0] = (uint32_t)(val64 % 1000000000);
-        out.T[1] = (uint32_t)(val64 / 1000000000);
+        out.T[0] = (uint32_t)(val64 % 4294967296);
+        out.T[1] = (uint32_t)(val64 / 4294967296);
         out.L = 2;
         out.exp = exponent;
 
@@ -686,7 +549,7 @@ BigFloat invsqrt(uint32_t x, size_t p) {
     BigFloat temp = T.mul(T, p);         //  r0^2
     temp = temp.mul(x);                 //  r0^2 * x
     temp = temp.sub(BigFloat(1), p);     //  r0^2 * x - 1
-    temp = temp.mul(500000000);         //  (r0^2 * x - 1) / 2
+    temp = temp.mul(2147483648);         //  (r0^2 * x - 1) / 2
     temp.exp--;
     temp = temp.mul(T, p);               //  (r0^2 * x - 1) / 2 * r0
     return T.sub(temp, p);               //  r0 - (r0^2 * x - 1) / 2 * r0

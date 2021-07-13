@@ -15,8 +15,7 @@ public:
 	BigFloat();
 	BigFloat(uint32_t x, bool sign = true);
 
-	std::string to_string(size_t digits = 0) const;
-	std::string to_string_sci(size_t digits = 0) const;
+	std::string to_string_dec(size_t digits = 0) const;
 	size_t get_precision() const { return L; }
 	int64_t get_exponent() const { return exp; }
 	uint32_t word_at(int64_t mag) const;
@@ -36,7 +35,6 @@ private:
 	std::unique_ptr<uint32_t[]> T;
 
 	//  Internal helpers
-	int64_t to_string_trimmed(size_t digits, std::string& str) const;
 	int ucmp(const BigFloat& x) const;
 	BigFloat uadd(const BigFloat& x, size_t p) const;
 	BigFloat usub(const BigFloat& x, size_t p) const;
