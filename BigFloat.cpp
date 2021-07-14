@@ -379,7 +379,7 @@ BigFloat BigFloat::mul(const BigFloat& x, size_t p, int threads) const {
 	//  Determine minimum FFT size.
 	int k = 0;
 	size_t length = 1;
-	while (length < 2 * z.L) {
+	while (length < 4 * z.L) {
 		length <<= 1;
 		k++;
 	}
