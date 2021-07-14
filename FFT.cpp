@@ -73,6 +73,43 @@ void fft_forward(__m128d* T, int k, int threads) {
 		T[1] = _mm_sub_pd(a, b);
 		return;
 	}
+	else if (k == 2) {
+		//  Perform FFT reduction into two halves.
+
+		//  Grab Twiddle Factor
+		__m256d r0 = _mm256_set_pd(0, 0, 1, 1);
+		__m256d i0 = _mm256_set_pd(1, 1, 0, 0);
+
+		//  Grab elements
+		__m256d a0 = ((__m256d*)T)[0];
+		__m256d b0 = ((__m256d*)T)[1];
+
+		//  Perform butterfly
+		__m256d c0, d0;
+		c0 = _mm256_add_pd(a0, b0);
+		d0 = _mm256_sub_pd(a0, b0);
+
+		((__m256d*)T)[0] = c0;
+
+		//  Multiply by twiddle factor.
+		c0 = _mm256_mul_pd(d0, r0);
+		d0 = _mm256_mul_pd(_mm256_shuffle_pd(d0, d0, 5), i0);
+		c0 = _mm256_addsub_pd(c0, d0);
+
+		((__m256d*)T)[1] = c0;
+
+
+		__m256d a = _mm256_set_m128d(T[2], T[0]);
+		__m256d b = _mm256_set_m128d(T[3], T[1]);
+		__m256d c = _mm256_add_pd(a, b);
+		__m256d d = _mm256_sub_pd(a, b);
+		T[0] = _mm256_extractf128_pd(c, 0);
+		T[1] = _mm256_extractf128_pd(d, 0);
+		T[2] = _mm256_extractf128_pd(c, 1);
+		T[3] = _mm256_extractf128_pd(d, 1);
+
+		return;
+	}
 
 	size_t length = (size_t)1 << k;
 	size_t half_length = length / 2;
@@ -140,6 +177,44 @@ void fft_inverse(__m128d* T, int k, int threads) {
 		__m128d b = T[1];
 		T[0] = _mm_add_pd(a, b);
 		T[1] = _mm_sub_pd(a, b);
+		return;
+	}
+	else if (k == 2) {
+
+		__m256d a = _mm256_set_m128d(T[2], T[0]);
+		__m256d b = _mm256_set_m128d(T[3], T[1]);
+		__m256d c = _mm256_add_pd(a, b);
+		__m256d d = _mm256_sub_pd(a, b);
+		T[0] = _mm256_extractf128_pd(c, 0);
+		T[1] = _mm256_extractf128_pd(d, 0);
+		T[2] = _mm256_extractf128_pd(c, 1);
+		T[3] = _mm256_extractf128_pd(d, 1);
+
+
+		__m256d r0 = _mm256_set_pd(0, 0, 1, 1);
+		__m128d i0_1 = _mm_xor_pd(_mm_set1_pd(0), _mm_set1_pd(-0.0));
+		__m128d i0_2 = _mm_xor_pd(_mm_set1_pd(1), _mm_set1_pd(-0.0));
+
+		__m256d i0 = _mm256_set_m128d(i0_2, i0_1);
+
+		//  Grab elements
+		__m256d a0 = ((__m256d*)T)[0];
+		__m256d b0 = ((__m256d*)T)[1];
+
+		//  Perform butterfly
+		__m256d c0, d0;
+
+		//  Multiply by twiddle factor.
+		c0 = _mm256_mul_pd(b0, r0);
+		d0 = _mm256_mul_pd(_mm256_shuffle_pd(b0, b0, 5), i0);
+		c0 = _mm256_addsub_pd(c0, d0);
+
+		b0 = _mm256_add_pd(a0, c0);
+		d0 = _mm256_sub_pd(a0, c0);
+
+		((__m256d*)T)[0] = b0;
+		((__m256d*)T)[1] = d0;
+
 		return;
 	}
 

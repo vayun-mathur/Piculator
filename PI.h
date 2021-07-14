@@ -76,7 +76,7 @@ void Pi_BSR(BigFloat& P, BigFloat& Q, BigFloat& R, uint32_t a, uint32_t b, size_
 
         //  Q = 10939058860032000 * b^3
         Q = BigFloat(b);
-        Q = Q.mul(Q).mul(Q).mul(26726400).mul(409297880);
+        Q = Q.mul(b).mul(b).mul(26726400).mul(409297880);
 
         //  R = (2b-1)(6b-5)(6b-1)
         R = BigFloat(2 * b - 1);
@@ -89,8 +89,18 @@ void Pi_BSR(BigFloat& P, BigFloat& Q, BigFloat& R, uint32_t a, uint32_t b, size_
     uint32_t m = (a + b) / 2;
 
     BigFloat P0, Q0, R0, P1, Q1, R1;
-    Pi_BSR(P0, Q0, R0, a, m, p, tds);
-    Pi_BSR(P1, Q1, R1, m, b, p, tds);
+    if (b-a < 1000 || tds < 2) {
+        Pi_BSR(P0, Q0, R0, a, m, p, tds);
+        Pi_BSR(P1, Q1, R1, m, b, p, tds);
+    }
+    else {
+        int tds0 = tds / 2;
+        int tds1 = tds - tds0;
+        std::thread x([&]() {Pi_BSR(P0, Q0, R0, a, m, p, tds0); });
+        std::thread y([&]() {Pi_BSR(P1, Q1, R1, m, b, p, tds1); });
+        x.join();
+        y.join();
+    }
 
     P = P0.mul(Q1, p, tds).add(P1.mul(R0, p, tds), p);
     Q = Q0.mul(Q1, p, tds);
