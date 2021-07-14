@@ -16,6 +16,7 @@ public:
 	BigFloat(uint32_t x, bool sign = true);
 
 	std::string to_string_dec(size_t digits = 0) const;
+	std::string to_string_hex(size_t digits = 0) const;
 	size_t get_precision() const { return L; }
 	int64_t get_exponent() const { return exp; }
 	uint32_t word_at(int64_t mag) const;
@@ -24,7 +25,7 @@ public:
 	BigFloat mul(uint32_t x) const;
 	BigFloat add(const BigFloat& x, size_t p = 0) const;
 	BigFloat sub(const BigFloat& x, size_t p = 0) const;
-	BigFloat mul(const BigFloat& x, size_t p = 0) const;
+	BigFloat mul(const BigFloat& x, size_t p = 0, int threads=1) const;
 	BigFloat rcp(size_t p) const;
 	BigFloat div(const BigFloat& x, size_t p) const;
 

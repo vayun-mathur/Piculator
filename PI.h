@@ -14,6 +14,7 @@
 #include <list>
 #include <thread>
 #include <omp.h>
+#include <future>
 using std::cout;
 using std::endl;
 using std::complex;
@@ -88,22 +89,12 @@ void Pi_BSR(BigFloat& P, BigFloat& Q, BigFloat& R, uint32_t a, uint32_t b, size_
     uint32_t m = (a + b) / 2;
 
     BigFloat P0, Q0, R0, P1, Q1, R1;
-    if (tds == 1 || b-a > 10'000'000) {
-        Pi_BSR(P0, Q0, R0, a, m, p, tds);
-        Pi_BSR(P1, Q1, R1, m, b, p, tds);
-    }
-    else {
-        int tds0 = tds / 2;
-        int tds1 = tds - tds0;
-        std::thread left([&P0, &Q0, &R0, a, m, p, tds0]()->void {Pi_BSR(P0, Q0, R0, a, m, p, tds0); });
-        std::thread right([&P1, &Q1, &R1, m, b, p, tds1]()->void {Pi_BSR(P1, Q1, R1, m, b, p, tds1); });
-        left.join();
-        right.join();
-    }
+    Pi_BSR(P0, Q0, R0, a, m, p, tds);
+    Pi_BSR(P1, Q1, R1, m, b, p, tds);
 
-    P = P0.mul(Q1, p).add(P1.mul(R0, p), p);
-    Q = Q0.mul(Q1, p);
-    R = R0.mul(R1, p);
+    P = P0.mul(Q1, p, tds).add(P1.mul(R0, p, tds), p);
+    Q = Q0.mul(Q1, p, tds);
+    R = R0.mul(R1, p, tds);
 
     iterations++;
     const size_t it = iterations;
@@ -195,7 +186,7 @@ void Pi(size_t decimal_digits, size_t threads) {
     printf_color(CYAN, "%s\n", time_str(time4 - time3).c_str());
 
     printf_color(WHITE, "Base Conversion...\n");
-    std::string str = P.to_string_dec(decimal_digits);
+    std::string str = P.to_string_hex(hex_digits);
     double time5 = wall_clock();
     printf_color(CYAN, "%s\n", time_str(time5 - time4).c_str());
 

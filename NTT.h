@@ -17,8 +17,8 @@ public:
     ~NNT() { _free(); }
 
     // Main interface
-    void  NTT(NNT_WORD* dst, NNT_WORD* src, NNT_WORD n = 0);                // NNT_WORD dst[n] = fast  NTT(NNT_WORD src[n])
-    void iNTT(NNT_WORD* dst, NNT_WORD* src, NNT_WORD n = 0);               // NNT_WORD dst[n] = fast INTT(NNT_WORD src[n])
+    void  NTT(NNT_WORD* dst, NNT_WORD* src, int threads);                // NNT_WORD dst[n] = fast  NTT(NNT_WORD src[n])
+    void iNTT(NNT_WORD* dst, NNT_WORD* src, int threads);               // NNT_WORD dst[n] = fast INTT(NNT_WORD src[n])
 
     // Modular arithmetics
     NNT_WORD mod(NNT_WORD a);
@@ -35,7 +35,7 @@ private:
     void _alloc(NNT_WORD n);                                    // Allocate and precompute W,iW powers tables
 
     // Helper functions
-    void  NTT_fast(NNT_WORD* dst, NNT_WORD* src, NNT_WORD n, NNT_WORD w);    // NNT_WORD dst[n] = fast  NTT(NNT_WORD src[n])
+    void  NTT_fast(NNT_WORD* dst, NNT_WORD* src, NNT_WORD n, NNT_WORD w, int threads);    // NNT_WORD dst[n] = fast  NTT(NNT_WORD src[n])
     void  NTT_fast(NNT_WORD* dst, NNT_WORD* src, NNT_WORD n, NNT_WORD* w2, NNT_WORD i2);
 
 private:
@@ -45,8 +45,8 @@ private:
 };
 
 void ntt_ensure_table(int k);
-void ntt_forward(NNT_WORD* T, int k);
-void ntt_inverse(NNT_WORD* T, int k);
+void ntt_forward(NNT_WORD* T, int k, int threads);
+void ntt_inverse(NNT_WORD* T, int k, int threads);
 void ntt_pointwise(NNT_WORD* T, NNT_WORD* A, int k);
 void int_to_ntt(NNT_WORD* T, int k, const uint32_t* A, size_t AL);
 void ntt_to_int(NNT_WORD* T, int k, uint32_t* A, size_t AL);

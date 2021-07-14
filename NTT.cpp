@@ -2,7 +2,9 @@
 #include <immintrin.h>
 #include <memory>
 #include <map>
+#include <thread>
 #include "NTT.h"
+#include <future>
 #pragma intrinsic(_umul128)
 #pragma intrinsic(_udiv128)
 
@@ -35,17 +37,15 @@ void NNT::_alloc(NNT_WORD n)
 }
 
 
-void NNT::NTT(NNT_WORD* dst, NNT_WORD* src, NNT_WORD n)
+void NNT::NTT(NNT_WORD* dst, NNT_WORD* src, int threads)
 {
-	if (n > 0) init(n);
-	NTT_fast(dst, src, N, W);
+	NTT_fast(dst, src, N, W, threads);
 }
 
 
-void NNT::iNTT(NNT_WORD* dst, NNT_WORD* src, NNT_WORD n)
+void NNT::iNTT(NNT_WORD* dst, NNT_WORD* src, int threads)
 {
-	if (n > 0) init(n);
-	NTT_fast(dst, src, N, iW);
+	NTT_fast(dst, src, N, iW, threads);
 	for (NNT_WORD i = 0; i < N; i++) dst[i] = modmul(dst[i], rN);
 }
 NNT_WORD modmul(NNT_WORD a, NNT_WORD b, NNT_WORD p)
@@ -154,7 +154,7 @@ bool NNT::init(NNT_WORD n)
 }
 
 
-void NNT::NTT_fast(NNT_WORD* dst, NNT_WORD* src, NNT_WORD n, NNT_WORD w)
+void NNT::NTT_fast(NNT_WORD* dst, NNT_WORD* src, NNT_WORD n, NNT_WORD w, int threads)
 {
 
 	if (n <= 1) { if (n == 1) dst[0] = src[0]; return; }
@@ -165,8 +165,18 @@ void NNT::NTT_fast(NNT_WORD* dst, NNT_WORD* src, NNT_WORD n, NNT_WORD w)
 	for (j = 1; i < n; i++, j += 2) dst[i] = src[j];
 
 	// Recursion
-	NTT_fast(src, dst, n2, w2);    // Even
-	NTT_fast(src + n2, dst + n2, n2, w2);    // Odd
+	if (threads == 1) {
+		NTT_fast(src, dst, n2, w2, 1);    // Even
+		NTT_fast(src + n2, dst + n2, n2, w2, 1);    // Odd
+	}
+	else {
+		int tds0 = threads / 2;
+		int tds1 = threads - tds0;
+		void (NNT::*func_ptr)(NNT_WORD *, NNT_WORD *, NNT_WORD, NNT_WORD, int) = &NNT::NTT_fast;
+		auto x = std::async(std::launch::async, func_ptr, this, src, dst, n2, w2, tds0);    // Even
+		NTT_fast(src + n2, dst + n2, n2, w2, tds1);    // Odd
+		x.wait();
+	}
 
 	// Restore results
 	for (w2 = 1, i = 0, j = n2; i < n2; i++, j++, w2 = modmul(w2, w))
@@ -267,20 +277,20 @@ void ntt_ensure_table(int k)
 	ntts[k].init(1ull << k);
 }
 
-void ntt_forward(NNT_WORD* T, int k)
+void ntt_forward(NNT_WORD* T, int k, int threads)
 {
 	NNT& nnt = ntts[k];
 	NNT_WORD* D = new NNT_WORD[(1ull << k)];
-	nnt.NTT(D, T);
+	nnt.NTT(D, T, threads);
 	memcpy(T, D, sizeof(NNT_WORD) * (1ull << k));
 	delete[] D;
 }
 
-void ntt_inverse(NNT_WORD* T, int k)
+void ntt_inverse(NNT_WORD* T, int k, int threads)
 {
 	NNT& nnt = ntts[k];
 	NNT_WORD* D = new NNT_WORD[(1ull << k)];
-	nnt.iNTT(D, T);
+	nnt.iNTT(D, T, threads);
 	memcpy(T, D, sizeof(NNT_WORD) * (1ull << k));
 	delete[] D;
 }
