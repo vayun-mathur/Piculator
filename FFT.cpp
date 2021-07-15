@@ -74,26 +74,17 @@ void fft_forward(__m128d* T, int k, int threads) {
 		return;
 	}
 	else if (k == 2) {
-		//  Perform FFT reduction into two halves.
 
-		//  Grab Twiddle Factor
-		__m256d r0 = _mm256_set_pd(0, 0, 1, 1);
-		__m256d i0 = _mm256_set_pd(1, 1, 0, 0);
-
-		//  Grab elements
 		__m256d a0 = ((__m256d*)T)[0];
 		__m256d b0 = ((__m256d*)T)[1];
 
-		//  Perform butterfly
 		__m256d c0, d0;
 		c0 = _mm256_add_pd(a0, b0);
 		d0 = _mm256_sub_pd(a0, b0);
 
 		((__m256d*)T)[0] = c0;
-
-		//  Multiply by twiddle factor.
-		c0 = _mm256_mul_pd(d0, r0);
-		d0 = _mm256_mul_pd(_mm256_shuffle_pd(d0, d0, 5), i0);
+		c0 = _mm256_set_m128d(_mm_setzero_pd(), _mm256_extractf128_pd(d0, 0));
+		d0 = _mm256_set_m128d(_mm_permute_pd(_mm256_extractf128_pd(d0, 1), 1), _mm_setzero_pd());
 		c0 = _mm256_addsub_pd(c0, d0);
 
 		((__m256d*)T)[1] = c0;
@@ -110,36 +101,141 @@ void fft_forward(__m128d* T, int k, int threads) {
 
 		return;
 	}
+	else if (k == 3) {
+
+		{
+			//  Grab Twiddle Factor
+			__m256d r0 = _mm256_set_pd(M_SQRT1_2, M_SQRT1_2, 1, 1);
+			__m256d i0 = _mm256_set_pd(M_SQRT1_2, M_SQRT1_2, 0, 0);
+
+			//  Grab elements
+			__m256d a0 = ((__m256d*)T)[0];
+			__m256d b0 = ((__m256d*)T)[2];
+
+			//  Perform butterfly
+			__m256d c0, d0;
+			c0 = _mm256_add_pd(a0, b0);
+			d0 = _mm256_sub_pd(a0, b0);
+
+			((__m256d*)T)[0] = c0;
+
+			//  Multiply by twiddle factor.
+			c0 = _mm256_mul_pd(d0, r0);
+			d0 = _mm256_mul_pd(_mm256_shuffle_pd(d0, d0, 5), i0);
+			c0 = _mm256_addsub_pd(c0, d0);
+
+			((__m256d*)T)[2] = c0;
+		}
+		{
+			__m256d r0 = _mm256_set_pd(-M_SQRT1_2, -M_SQRT1_2, 0, 0);
+			__m256d i0 = _mm256_set_pd(M_SQRT1_2, M_SQRT1_2, 1, 1);
+
+			//  Grab elements
+			__m256d a0 = ((__m256d*)T)[1];
+			__m256d b0 = ((__m256d*)T)[3];
+
+			//  Perform butterfly
+			__m256d c0, d0;
+			c0 = _mm256_add_pd(a0, b0);
+			d0 = _mm256_sub_pd(a0, b0);
+
+			((__m256d*)T)[1] = c0;
+
+			//  Multiply by twiddle factor.
+			c0 = _mm256_mul_pd(d0, r0);
+			d0 = _mm256_mul_pd(_mm256_shuffle_pd(d0, d0, 5), i0);
+			c0 = _mm256_addsub_pd(c0, d0);
+
+			((__m256d*)T)[3] = c0;
+		}
+		{
+			__m256d a0 = ((__m256d*)T)[0];
+			__m256d b0 = ((__m256d*)T)[1];
+
+			__m256d c0, d0;
+			c0 = _mm256_add_pd(a0, b0);
+			d0 = _mm256_sub_pd(a0, b0);
+
+			((__m256d*)T)[0] = c0;
+			c0 = _mm256_set_m128d(_mm_setzero_pd(), _mm256_extractf128_pd(d0, 0));
+			d0 = _mm256_set_m128d(_mm_permute_pd(_mm256_extractf128_pd(d0, 1), 1), _mm_setzero_pd());
+			c0 = _mm256_addsub_pd(c0, d0);
+
+			((__m256d*)T)[1] = c0;
+
+
+			__m256d a = _mm256_set_m128d(T[2], T[0]);
+			__m256d b = _mm256_set_m128d(T[3], T[1]);
+			__m256d c = _mm256_add_pd(a, b);
+			__m256d d = _mm256_sub_pd(a, b);
+			T[0] = _mm256_extractf128_pd(c, 0);
+			T[1] = _mm256_extractf128_pd(d, 0);
+			T[2] = _mm256_extractf128_pd(c, 1);
+			T[3] = _mm256_extractf128_pd(d, 1);
+		}
+		{
+			__m256d a0 = ((__m256d*)T)[2];
+			__m256d b0 = ((__m256d*)T)[3];
+
+			__m256d c0, d0;
+			c0 = _mm256_add_pd(a0, b0);
+			d0 = _mm256_sub_pd(a0, b0);
+
+			((__m256d*)T)[2] = c0;
+			c0 = _mm256_set_m128d(_mm_setzero_pd(), _mm256_extractf128_pd(d0, 0));
+			d0 = _mm256_set_m128d(_mm_permute_pd(_mm256_extractf128_pd(d0, 1), 1), _mm_setzero_pd());
+			c0 = _mm256_addsub_pd(c0, d0);
+
+			((__m256d*)T)[3] = c0;
+
+
+			__m256d a = _mm256_set_m128d(T[6], T[4]);
+			__m256d b = _mm256_set_m128d(T[7], T[5]);
+			__m256d c = _mm256_add_pd(a, b);
+			__m256d d = _mm256_sub_pd(a, b);
+			T[4] = _mm256_extractf128_pd(c, 0);
+			T[5] = _mm256_extractf128_pd(d, 0);
+			T[6] = _mm256_extractf128_pd(c, 1);
+			T[7] = _mm256_extractf128_pd(d, 1);
+		}
+
+		return;
+	}
 
 	size_t length = (size_t)1 << k;
 	size_t half_length = length / 2;
+	size_t quarter_length = half_length / 2;
 
 	//  Get local twiddle table.
 	my_complex* local_table = twiddle_table[k];
 
 	//  Perform FFT reduction into two halves.
-	for (size_t c = 0; c < half_length; c++) {
+	for (size_t c = 0; c < quarter_length; c++) {
 		//  Grab Twiddle Factor
-		__m128d r0 = _mm_loaddup_pd(&local_table[c].r);
-		__m128d i0 = _mm_loaddup_pd(&local_table[c].i);
+		__m128d r0_1 = _mm_loaddup_pd(&local_table[c * 2].r);
+		__m128d i0_1 = _mm_loaddup_pd(&local_table[c * 2].i);
+		__m128d r0_2 = _mm_loaddup_pd(&local_table[c * 2 + 1].r);
+		__m128d i0_2 = _mm_loaddup_pd(&local_table[c * 2 + 1].i);
+		__m256d i0 = _mm256_set_m128d(i0_2, i0_1);
+		__m256d r0 = _mm256_set_m128d(r0_2, r0_1);
 
 		//  Grab elements
-		__m128d a0 = T[c];
-		__m128d b0 = T[c + half_length];
+		__m256d a0 = ((__m256d*)T)[c];
+		__m256d b0 = ((__m256d*)T)[c + quarter_length];
 
 		//  Perform butterfly
-		__m128d c0, d0;
-		c0 = _mm_add_pd(a0, b0);
-		d0 = _mm_sub_pd(a0, b0);
+		__m256d c0, d0;
+		c0 = _mm256_add_pd(a0, b0);
+		d0 = _mm256_sub_pd(a0, b0);
 
-		T[c] = c0;
+		((__m256d*)T)[c] = c0;
 
 		//  Multiply by twiddle factor.
-		c0 = _mm_mul_pd(d0, r0);
-		d0 = _mm_mul_pd(_mm_shuffle_pd(d0, d0, 1), i0);
-		c0 = _mm_addsub_pd(c0, d0);
+		c0 = _mm256_mul_pd(d0, r0);
+		d0 = _mm256_mul_pd(_mm256_shuffle_pd(d0, d0, 5), i0);
+		c0 = _mm256_addsub_pd(c0, d0);
 
-		T[c + half_length] = c0;
+		((__m256d*)T)[c + quarter_length] = c0;
 	}
 
 	if (threads == 1) {
@@ -190,36 +286,120 @@ void fft_inverse(__m128d* T, int k, int threads) {
 		T[2] = _mm256_extractf128_pd(c, 1);
 		T[3] = _mm256_extractf128_pd(d, 1);
 
-
-		__m256d r0 = _mm256_set_pd(0, 0, 1, 1);
-		__m128d i0_1 = _mm_xor_pd(_mm_set1_pd(0), _mm_set1_pd(-0.0));
-		__m128d i0_2 = _mm_xor_pd(_mm_set1_pd(1), _mm_set1_pd(-0.0));
-
-		__m256d i0 = _mm256_set_m128d(i0_2, i0_1);
-
-		//  Grab elements
 		__m256d a0 = ((__m256d*)T)[0];
 		__m256d b0 = ((__m256d*)T)[1];
 
-		//  Perform butterfly
 		__m256d c0, d0;
 
-		//  Multiply by twiddle factor.
-		c0 = _mm256_mul_pd(b0, r0);
-		d0 = _mm256_mul_pd(_mm256_shuffle_pd(b0, b0, 5), i0);
+		c0 = _mm256_set_m128d(_mm_setzero_pd(), _mm256_extractf128_pd(b0, 0));
+		d0 = _mm256_set_m128d(_mm_xor_pd(_mm_permute_pd(_mm256_extractf128_pd(b0, 1), 1), _mm_set1_pd(-0.0)), _mm_setzero_pd());
 		c0 = _mm256_addsub_pd(c0, d0);
 
-		b0 = _mm256_add_pd(a0, c0);
-		d0 = _mm256_sub_pd(a0, c0);
+		((__m256d*)T)[0] = _mm256_add_pd(a0, c0);
+		((__m256d*)T)[1] = _mm256_sub_pd(a0, c0);
 
-		((__m256d*)T)[0] = b0;
-		((__m256d*)T)[1] = d0;
+		return;
+	}
+	else if (k == 3) {
+
+		{
+			__m256d a = _mm256_set_m128d(T[2], T[0]);
+			__m256d b = _mm256_set_m128d(T[3], T[1]);
+			__m256d c = _mm256_add_pd(a, b);
+			__m256d d = _mm256_sub_pd(a, b);
+			T[0] = _mm256_extractf128_pd(c, 0);
+			T[1] = _mm256_extractf128_pd(d, 0);
+			T[2] = _mm256_extractf128_pd(c, 1);
+			T[3] = _mm256_extractf128_pd(d, 1);
+
+			__m256d a0 = ((__m256d*)T)[0];
+			__m256d b0 = ((__m256d*)T)[1];
+
+			__m256d c0, d0;
+
+			c0 = _mm256_set_m128d(_mm_setzero_pd(), _mm256_extractf128_pd(b0, 0));
+			d0 = _mm256_set_m128d(_mm_xor_pd(_mm_permute_pd(_mm256_extractf128_pd(b0, 1), 1), _mm_set1_pd(-0.0)), _mm_setzero_pd());
+			c0 = _mm256_addsub_pd(c0, d0);
+
+			((__m256d*)T)[0] = _mm256_add_pd(a0, c0);
+			((__m256d*)T)[1] = _mm256_sub_pd(a0, c0);
+		}
+		{
+			__m256d a = _mm256_set_m128d(T[6], T[4]);
+			__m256d b = _mm256_set_m128d(T[7], T[5]);
+			__m256d c = _mm256_add_pd(a, b);
+			__m256d d = _mm256_sub_pd(a, b);
+			T[4] = _mm256_extractf128_pd(c, 0);
+			T[5] = _mm256_extractf128_pd(d, 0);
+			T[6] = _mm256_extractf128_pd(c, 1);
+			T[7] = _mm256_extractf128_pd(d, 1);
+
+			__m256d a0 = ((__m256d*)T)[2];
+			__m256d b0 = ((__m256d*)T)[3];
+
+			__m256d c0, d0;
+
+			c0 = _mm256_set_m128d(_mm_setzero_pd(), _mm256_extractf128_pd(b0, 0));
+			d0 = _mm256_set_m128d(_mm_xor_pd(_mm_permute_pd(_mm256_extractf128_pd(b0, 1), 1), _mm_set1_pd(-0.0)), _mm_setzero_pd());
+			c0 = _mm256_addsub_pd(c0, d0);
+
+			((__m256d*)T)[2] = _mm256_add_pd(a0, c0);
+			((__m256d*)T)[3] = _mm256_sub_pd(a0, c0);
+		}
+		//  Perform FFT reduction into two halves.
+		{
+			//  Grab Twiddle Factor
+			__m256d r0 = _mm256_set_pd(M_SQRT1_2, M_SQRT1_2, 1, 1);
+			__m256d i0 = _mm256_set_pd(-M_SQRT1_2, -M_SQRT1_2, -0, -0);
+
+			//  Grab elements
+			__m256d a0 = ((__m256d*)T)[0];
+			__m256d b0 = ((__m256d*)T)[2];
+
+			//  Perform butterfly
+			__m256d c0, d0;
+
+			//  Multiply by twiddle factor.
+			c0 = _mm256_mul_pd(b0, r0);
+			d0 = _mm256_mul_pd(_mm256_shuffle_pd(b0, b0, 5), i0);
+			c0 = _mm256_addsub_pd(c0, d0);
+
+			b0 = _mm256_add_pd(a0, c0);
+			d0 = _mm256_sub_pd(a0, c0);
+
+			((__m256d*)T)[0] = b0;
+			((__m256d*)T)[2] = d0;
+		}
+		{
+			//  Grab Twiddle Factor
+			__m256d r0 = _mm256_set_pd(-M_SQRT1_2, -M_SQRT1_2, 0, 0);
+			__m256d i0 = _mm256_set_pd(-M_SQRT1_2, -M_SQRT1_2, -1, -1);
+
+			//  Grab elements
+			__m256d a0 = ((__m256d*)T)[1];
+			__m256d b0 = ((__m256d*)T)[3];
+
+			//  Perform butterfly
+			__m256d c0, d0;
+
+			//  Multiply by twiddle factor.
+			c0 = _mm256_mul_pd(b0, r0);
+			d0 = _mm256_mul_pd(_mm256_shuffle_pd(b0, b0, 5), i0);
+			c0 = _mm256_addsub_pd(c0, d0);
+
+			b0 = _mm256_add_pd(a0, c0);
+			d0 = _mm256_sub_pd(a0, c0);
+
+			((__m256d*)T)[1] = b0;
+			((__m256d*)T)[3] = d0;
+		}
 
 		return;
 	}
 
 	size_t length = (size_t)1 << k;
 	size_t half_length = length / 2;
+	size_t quarter_length = half_length / 2;
 
 	if (threads == 1) {
 		//  Recursively perform FFT on lower elements.
@@ -244,29 +424,34 @@ void fft_inverse(__m128d* T, int k, int threads) {
 	my_complex* local_table = twiddle_table[k];
 
 	//  Perform FFT reduction into two halves.
-	for (size_t c = 0; c < half_length; c++) {
+	for (size_t c = 0; c < quarter_length; c++) {
 		//  Grab Twiddle Factor
-		__m128d r0 = _mm_loaddup_pd(&local_table[c].r);
-		__m128d i0 = _mm_loaddup_pd(&local_table[c].i);
-		i0 = _mm_xor_pd(i0, _mm_set1_pd(-0.0));
+		__m128d r0_1 = _mm_loaddup_pd(&local_table[c * 2].r);
+		__m128d i0_1 = _mm_loaddup_pd(&local_table[c * 2].i);
+		__m128d r0_2 = _mm_loaddup_pd(&local_table[c * 2 + 1].r);
+		__m128d i0_2 = _mm_loaddup_pd(&local_table[c * 2 + 1].i);
+
+		__m256d r0 = _mm256_set_m128d(r0_2, r0_1);
+		__m256d i0 = _mm256_set_m128d(i0_2, i0_1);
+		i0 = _mm256_xor_pd(i0, _mm256_set1_pd(-0.0));
 
 		//  Grab elements
-		__m128d a0 = T[c];
-		__m128d b0 = T[c + half_length];
+		__m256d a0 = ((__m256d*)T)[c];
+		__m256d b0 = ((__m256d*)T)[c + quarter_length];
 
 		//  Perform butterfly
-		__m128d c0, d0;
+		__m256d c0, d0;
 
 		//  Multiply by twiddle factor.
-		c0 = _mm_mul_pd(b0, r0);
-		d0 = _mm_mul_pd(_mm_shuffle_pd(b0, b0, 1), i0);
-		c0 = _mm_addsub_pd(c0, d0);
+		c0 = _mm256_mul_pd(b0, r0);
+		d0 = _mm256_mul_pd(_mm256_shuffle_pd(b0, b0, 5), i0);
+		c0 = _mm256_addsub_pd(c0, d0);
 
-		b0 = _mm_add_pd(a0, c0);
-		d0 = _mm_sub_pd(a0, c0);
+		b0 = _mm256_add_pd(a0, c0);
+		d0 = _mm256_sub_pd(a0, c0);
 
-		T[c] = b0;
-		T[c + half_length] = d0;
+		((__m256d*)T)[c] = b0;
+		((__m256d*)T)[c + quarter_length] = d0;
 	}
 }
 void fft_pointwise(__m128d* T, __m128d* A, int k) {
@@ -277,13 +462,17 @@ void fft_pointwise(__m128d* T, __m128d* A, int k) {
 	//  -   k           -   2^k is the size of the transform
 
 	size_t length = (size_t)1 << k;
-	for (size_t c = 0; c < length; c++) {
-		__m128d a0 = T[c];
-		__m128d b0 = A[c];
-		__m128d c0, d0;
-		c0 = _mm_mul_pd(a0, _mm_unpacklo_pd(b0, b0));
-		d0 = _mm_mul_pd(_mm_shuffle_pd(a0, a0, 1), _mm_unpackhi_pd(b0, b0));
-		T[c] = _mm_addsub_pd(c0, d0);
+
+	for (size_t c = 0; c < length/2; c++) {
+		__m256d a0 = ((__m256d*)T)[c];
+		double b0_1_lo = ((double*)(A + 2*c))[0];
+		double b0_1_hi = ((double*)(A + 2 * c))[1];
+		double b0_2_lo = ((double*)(A + 2 * c))[2];
+		double b0_2_hi = ((double*)(A + 2 * c))[3];
+		__m256d c0, d0;
+		c0 = _mm256_mul_pd(a0, _mm256_set_pd(b0_2_lo, b0_2_lo, b0_1_lo, b0_1_lo));
+		d0 = _mm256_mul_pd(_mm256_shuffle_pd(a0, a0, 5), _mm256_set_pd(b0_2_hi, b0_2_hi, b0_1_hi, b0_1_hi));
+		((__m256d*)T)[c] = _mm256_addsub_pd(c0, d0);
 	}
 }
 void int_to_fft(__m128d* T, int k, const uint32_t* A, size_t AL) {

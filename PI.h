@@ -89,7 +89,8 @@ void Pi_BSR(BigFloat& P, BigFloat& Q, BigFloat& R, uint32_t a, uint32_t b, size_
     uint32_t m = (a + b) / 2;
 
     BigFloat P0, Q0, R0, P1, Q1, R1;
-    if (b-a < 1000 || tds < 2) {
+    if (b - a < 1000 || tds == 1) {
+        tds = 1;
         Pi_BSR(P0, Q0, R0, a, m, p, tds);
         Pi_BSR(P1, Q1, R1, m, b, p, tds);
     }
