@@ -39,14 +39,6 @@ void calculatePi() {
 	}
 }
 
-bool Prime(NNT_WORD w) {
-	NNT_WORD s = ((NNT_WORD)sqrt(w) + 1);
-	for (NNT_WORD i = 2; i <= s; i++) {
-		if (w % i == 0) return false;
-	}
-	return true;
-}
-
 int main() {
 	HANDLE hOut = GetStdHandle(STD_OUTPUT_HANDLE);
 	DWORD dwMode = 0;

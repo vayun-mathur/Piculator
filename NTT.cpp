@@ -8,6 +8,40 @@
 #pragma intrinsic(_umul128)
 #pragma intrinsic(_udiv128)
 
+class NNT // Number theoretic transform
+{
+public:
+	NNT() { r = 0; L = 0; p = 0; W = 0; iW = 0; rN = 0; WW = NULL; iWW = NULL; NN = 0; }
+	~NNT() { _free(); }
+
+	// Main interface
+	void  NTT(uint64_t* dst, uint64_t* src, int threads);                // uint64_t dst[n] = fast  NTT(uint64_t src[n])
+	void iNTT(uint64_t* dst, uint64_t* src, int threads);               // uint64_t dst[n] = fast INTT(uint64_t src[n])
+
+	// Modular arithmetics
+	uint64_t mod(uint64_t a);
+	uint64_t modadd(uint64_t a, uint64_t b);
+	uint64_t modsub(uint64_t a, uint64_t b);
+	uint64_t modmul(uint64_t a, uint64_t b);
+	uint64_t modpow(uint64_t a, uint64_t b);
+
+	bool init(uint64_t n);                                          // init r,L,p,W,iW,rN
+
+private:
+	// Internals
+	void _free();                                            // Free precomputed W,iW powers tables
+	void _alloc(uint64_t n);                                    // Allocate and precompute W,iW powers tables
+
+	// Helper functions
+	void  NTT_fast(uint64_t* dst, uint64_t* src, uint64_t n, uint64_t w, int threads);    // uint64_t dst[n] = fast  NTT(uint64_t src[n])
+	void  NTT_fast(uint64_t* dst, uint64_t* src, uint64_t n, uint64_t* w2, uint64_t i2);
+
+private:
+	uint64_t r, L, p, N;
+	uint64_t W, iW, rN;        // W=(r^L) mod p, iW=inverse W, rN = inverse N
+	uint64_t* WW, * iWW, NN;    // Precomputed (W,iW)^(0,..,NN-1) powers
+};
+
 
 
 void NNT::_free()
@@ -18,16 +52,16 @@ void NNT::_free()
 }
 
 
-void NNT::_alloc(NNT_WORD n)
+void NNT::_alloc(uint64_t n)
 {
 	/*
-	WW = new NNT_WORD[n];
+	WW = new uint64_t[n];
 	WW[0] = 1;
 	for (size_t i = 1; i < n; i++) {
 		WW[i] = modmul(WW[i - 1], W);
 	}
 
-	iWW = new NNT_WORD[n];
+	iWW = new uint64_t[n];
 	iWW[0] = 1;
 	for (size_t i = 1; i < n; i++) {
 		iWW[i] = modmul(iWW[i - 1], iW);
@@ -37,25 +71,25 @@ void NNT::_alloc(NNT_WORD n)
 }
 
 
-void NNT::NTT(NNT_WORD* dst, NNT_WORD* src, int threads)
+void NNT::NTT(uint64_t* dst, uint64_t* src, int threads)
 {
 	NTT_fast(dst, src, N, W, threads);
 }
 
 
-void NNT::iNTT(NNT_WORD* dst, NNT_WORD* src, int threads)
+void NNT::iNTT(uint64_t* dst, uint64_t* src, int threads)
 {
 	NTT_fast(dst, src, N, iW, threads);
-	for (NNT_WORD i = 0; i < N; i++) dst[i] = modmul(dst[i], rN);
+	for (uint64_t i = 0; i < N; i++) dst[i] = modmul(dst[i], rN);
 }
-NNT_WORD modmul(NNT_WORD a, NNT_WORD b, NNT_WORD p)
+uint64_t modmul(uint64_t a, uint64_t b, uint64_t p)
 {
 	uint64_t r, s = _umul128(a, b, &r);
 	(void)_udiv128(r, s, p, &r);
 	return r;
 }
-NNT_WORD modpow(NNT_WORD a, NNT_WORD b, NNT_WORD p) {
-	NNT_WORD result = 1;
+uint64_t modpow(uint64_t a, uint64_t b, uint64_t p) {
+	uint64_t result = 1;
 	while (b > 0) {
 		if (b & 1)
 			result = modmul(result, a, p);
@@ -67,10 +101,10 @@ NNT_WORD modpow(NNT_WORD a, NNT_WORD b, NNT_WORD p) {
 
 #include <vector>
 
-NNT_WORD generator(NNT_WORD p) {
-	std::vector<NNT_WORD> fact;
-	NNT_WORD phi = p - 1, n = phi;
-	for (NNT_WORD i = 2; i * i <= n; ++i)
+uint64_t generator(uint64_t p) {
+	std::vector<uint64_t> fact;
+	uint64_t phi = p - 1, n = phi;
+	for (uint64_t i = 2; i * i <= n; ++i)
 		if (n % i == 0) {
 			fact.push_back(i);
 			while (n % i == 0)
@@ -79,7 +113,7 @@ NNT_WORD generator(NNT_WORD p) {
 	if (n > 1)
 		fact.push_back(n);
 
-	for (NNT_WORD res = 2; res <= p; ++res) {
+	for (uint64_t res = 2; res <= p; ++res) {
 		bool ok = true;
 		for (size_t i = 0; i < fact.size() && ok; ++i)
 			ok &= modpow(res, phi / fact[i], p) != 1;
@@ -88,7 +122,7 @@ NNT_WORD generator(NNT_WORD p) {
 	return -1;
 }
 
-std::map<int, NNT_WORD> primes = {
+std::map<int, uint64_t> primes = {
 	{11, 9223372036854675457},
 {12, 9223372036854497281},
 {13, 9223372036854497281},
@@ -123,16 +157,16 @@ std::map<int, NNT_WORD> primes = {
 {42, 9223341250529198081}
 };
 
-bool PrimeQ(NNT_WORD w) {
-	NNT_WORD s = ((NNT_WORD)sqrt(w) + 1);
-	for (NNT_WORD i = 2; i <= s; i++) {
+bool PrimeQ(uint64_t w) {
+	uint64_t s = ((uint64_t)sqrt(w) + 1);
+	for (uint64_t i = 2; i <= s; i++) {
 		if (w % i == 0) return false;
 	}
 	return true;
 }
 
 
-bool NNT::init(NNT_WORD n)
+bool NNT::init(uint64_t n)
 {
 	/*
 	L = (1ull << (64 - (int)round(log2(n)))) - 1;
@@ -145,7 +179,7 @@ bool NNT::init(NNT_WORD n)
 	r = generator(p);
 	L = (p - 1) / n;
 
-	N = n;                // Size of vectors [NNT_WORDs]
+	N = n;                // Size of vectors [uint64_ts]
 	W = modpow(r, L);  // Wn for NTT
 	iW = modpow(r, p - 1 - L);  // Wn for INTT
 	rN = modpow(n, p - 2);  // Scale for INTT
@@ -154,11 +188,11 @@ bool NNT::init(NNT_WORD n)
 }
 
 
-void NNT::NTT_fast(NNT_WORD* dst, NNT_WORD* src, NNT_WORD n, NNT_WORD w, int threads)
+void NNT::NTT_fast(uint64_t* dst, uint64_t* src, uint64_t n, uint64_t w, int threads)
 {
 
 	if (n <= 1) { if (n == 1) dst[0] = src[0]; return; }
-	NNT_WORD i, j, a0, a1, n2 = n >> 1, w2 = modmul(w, w);
+	uint64_t i, j, a0, a1, n2 = n >> 1, w2 = modmul(w, w);
 
 	// Reorder even,odd
 	for (i = 0, j = 0; i < n2; i++, j += 2) dst[i] = src[j];
@@ -172,7 +206,7 @@ void NNT::NTT_fast(NNT_WORD* dst, NNT_WORD* src, NNT_WORD n, NNT_WORD w, int thr
 	else {
 		int tds0 = threads / 2;
 		int tds1 = threads - tds0;
-		void (NNT::*func_ptr)(NNT_WORD *, NNT_WORD *, NNT_WORD, NNT_WORD, int) = &NNT::NTT_fast;
+		void (NNT::*func_ptr)(uint64_t *, uint64_t *, uint64_t, uint64_t, int) = &NNT::NTT_fast;
 		auto x = std::async(std::launch::async, func_ptr, this, src, dst, n2, w2, tds0);    // Even
 		NTT_fast(src + n2, dst + n2, n2, w2, tds1);    // Odd
 		x.wait();
@@ -189,10 +223,10 @@ void NNT::NTT_fast(NNT_WORD* dst, NNT_WORD* src, NNT_WORD n, NNT_WORD w, int thr
 }
 
 
-void NNT::NTT_fast(NNT_WORD* dst, NNT_WORD* src, NNT_WORD n, NNT_WORD* w2, NNT_WORD i2)
+void NNT::NTT_fast(uint64_t* dst, uint64_t* src, uint64_t n, uint64_t* w2, uint64_t i2)
 {
 	if (n <= 1) { if (n == 1) dst[0] = src[0]; return; }
-	NNT_WORD i, j, a0, a1, n2 = n >> 1;
+	uint64_t i, j, a0, a1, n2 = n >> 1;
 
 	// Reorder even,odd
 	for (i = 0, j = 0; i < n2; i++, j += 2) dst[i] = src[j];
@@ -214,48 +248,40 @@ void NNT::NTT_fast(NNT_WORD* dst, NNT_WORD* src, NNT_WORD n, NNT_WORD* w2, NNT_W
 }
 
 
-NNT_WORD NNT::mod(NNT_WORD a)
+uint64_t NNT::mod(uint64_t a)
 {
 	if (a > p) a -= p;
 	return a;
 }
 
 
-NNT_WORD NNT::modadd(NNT_WORD a, NNT_WORD b)
+uint64_t NNT::modadd(uint64_t a, uint64_t b)
 {
-	NNT_WORD d;
-#if NTT_64
+	uint64_t d;
 	bool cy = _addcarry_u64(0, a, b, &d);
-#else
-	bool cy = _addcarry_u32(0, a, b, &d);
-#endif
 	if (cy) d -= p;
 	if (d >= p) d -= p;
 	return d;
 }
 
 
-NNT_WORD NNT::modsub(NNT_WORD a, NNT_WORD b)
+uint64_t NNT::modsub(uint64_t a, uint64_t b)
 {
-	NNT_WORD d;
-#if NTT_64
+	uint64_t d;
 	bool cy = _subborrow_u64(0, a, b, &d);
-#else
-	bool cy = _subborrow_u32(0, a, b, &d);
-#endif
 	if (cy) d += p;
 	return d;
 }
 
 
-NNT_WORD NNT::modmul(NNT_WORD a, NNT_WORD b)
+uint64_t NNT::modmul(uint64_t a, uint64_t b)
 {
 	uint64_t r, s = _umul128(a, b, &r);
 	(void)_udiv128(r, s, p, &r);
 	return r;
 }
-NNT_WORD NNT::modpow(NNT_WORD a, NNT_WORD b) {
-	NNT_WORD result = 1;
+uint64_t NNT::modpow(uint64_t a, uint64_t b) {
+	uint64_t result = 1;
 	while (b > 0) {
 		if (b & 1)
 			result = modmul(result, a);
@@ -277,31 +303,31 @@ void ntt_ensure_table(int k)
 	ntts[k].init(1ull << k);
 }
 
-void ntt_forward(NNT_WORD* T, int k, int threads)
+void ntt_forward(uint64_t* T, int k, int threads)
 {
 	NNT& nnt = ntts[k];
-	NNT_WORD* D = new NNT_WORD[(1ull << k)];
+	uint64_t* D = new uint64_t[(1ull << k)];
 	nnt.NTT(D, T, threads);
-	memcpy(T, D, sizeof(NNT_WORD) * (1ull << k));
+	memcpy(T, D, sizeof(uint64_t) * (1ull << k));
 	delete[] D;
 }
 
-void ntt_inverse(NNT_WORD* T, int k, int threads)
+void ntt_inverse(uint64_t* T, int k, int threads)
 {
 	NNT& nnt = ntts[k];
-	NNT_WORD* D = new NNT_WORD[(1ull << k)];
+	uint64_t* D = new uint64_t[(1ull << k)];
 	nnt.iNTT(D, T, threads);
-	memcpy(T, D, sizeof(NNT_WORD) * (1ull << k));
+	memcpy(T, D, sizeof(uint64_t) * (1ull << k));
 	delete[] D;
 }
 
-void ntt_pointwise(NNT_WORD* T, NNT_WORD* A, int k)
+void ntt_pointwise(uint64_t* T, uint64_t* A, int k)
 {
 	NNT& nnt = ntts[k];
 	for (int i = 0; i < (1 << k); i++) T[i] = nnt.modmul(T[i], A[i]);
 }
 
-void int_to_ntt(NNT_WORD* T, int k, const uint32_t* A, size_t AL)
+void int_to_ntt(uint64_t* T, int k, const uint32_t* A, size_t AL)
 {
 	for (size_t i = 0; i < AL; i++) {
 		uint32_t X = A[i];
@@ -314,7 +340,7 @@ void int_to_ntt(NNT_WORD* T, int k, const uint32_t* A, size_t AL)
 	}
 }
 
-void ntt_to_int(NNT_WORD* T, int k, uint32_t* A, size_t AL)
+void ntt_to_int(uint64_t* T, int k, uint32_t* A, size_t AL)
 {
 
 	//  Compute Scaling Factor

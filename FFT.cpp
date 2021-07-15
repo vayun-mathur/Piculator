@@ -21,6 +21,13 @@ using std::complex;
 #define M_PI       3.14159265358979323846
 #endif
 
+struct my_complex {
+	double r;
+	double i;
+	my_complex() : r(0), i(0) {};
+	my_complex(double _r, double _i) : r(_r), i(_i) {};
+};
+
 std::vector<my_complex*> twiddle_table;
 void fft_ensure_table(int k) {
 	//  Makes sure the twiddle factor table is large enough to handle an FFT of

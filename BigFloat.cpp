@@ -418,8 +418,8 @@ BigFloat BigFloat::mul(const BigFloat& x, size_t p, int threads) const {
 		//  Perform a convolution using NTT.
 
 		//  Allocate NTT arrays
-		auto Ta = (NNT_WORD*)malloc(length * sizeof(NNT_WORD));
-		auto Tb = (NNT_WORD*)malloc(length * sizeof(NNT_WORD));
+		auto Ta = (uint64_t*)malloc(length * sizeof(uint64_t));
+		auto Tb = (uint64_t*)malloc(length * sizeof(uint64_t));
 
 		//  Make sure the twiddle table is big enough.
 		ntt_ensure_table(k);
