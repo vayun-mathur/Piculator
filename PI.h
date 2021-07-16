@@ -90,7 +90,6 @@ void Pi_BSR(BigFloat& P, BigFloat& Q, BigFloat& R, uint32_t a, uint32_t b, size_
 
     BigFloat P0, Q0, R0, P1, Q1, R1;
     if (b - a < 1000 || tds == 1) {
-        tds = 1;
         Pi_BSR(P0, Q0, R0, a, m, p, tds);
         Pi_BSR(P1, Q1, R1, m, b, p, tds);
     }
@@ -107,14 +106,14 @@ void Pi_BSR(BigFloat& P, BigFloat& Q, BigFloat& R, uint32_t a, uint32_t b, size_
     Q = Q0.mul(Q1, p, tds);
     R = R0.mul(R1, p, tds);
 
+    /*
+
     iterations++;
     const size_t it = iterations;
     std::string s = "\r\x1B[" + std::to_string(WHITE) + "m";
     s += "Summing: ";
     s += "\x1B[" + std::to_string(BRIGHT_CYAN) + "m";
     s += "%.2f%%        ";
-    s += "\x1B[" + std::to_string(YELLOW) + "m";
-    s += "%llu/%llu";
     s += "\x1B[" + std::to_string(WHITE) + "m";
     s += "        Time remaining: ";
     s += "\x1B[" + std::to_string(BRIGHT_BLUE) + "m";
@@ -128,8 +127,8 @@ void Pi_BSR(BigFloat& P, BigFloat& Q, BigFloat& R, uint32_t a, uint32_t b, size_
     double full_time = elapsed_time / completion_frac;
     double time_left = full_time * (1 - completion_frac);
 
-    printf(s.c_str(), completion_frac * 100, it, steps, time_str(time_left).c_str());
-    fflush(stdout);
+    printf(s.c_str(), completion_frac * 100, time_str(time_left).c_str());
+    */
 }
 
 void Pi(size_t decimal_digits, size_t threads) {
@@ -182,17 +181,17 @@ void Pi(size_t decimal_digits, size_t threads) {
 
 
     printf_color(WHITE, "Division...\n");
-    P = Q.div(P, p);
+    P = Q.div(P, p, threads);
     double time2 = wall_clock();
     printf_color(CYAN, "%s\n", time_str(time2 - time1).c_str());
 
     printf_color(WHITE, "InvSqrt...\n");
-    Q = invsqrt(10005, p);
+    Q = invsqrt(10005, p, threads);
     double time3 = wall_clock();
     printf_color(CYAN, "%s\n", time_str(time3 - time2).c_str());
 
     printf_color(WHITE, "Final Multiply...\n");
-    P = P.mul(Q, p);
+    P = P.mul(Q, p, threads);
     double time4 = wall_clock();
     printf_color(CYAN, "%s\n", time_str(time4 - time3).c_str());
 

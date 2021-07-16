@@ -442,7 +442,7 @@ BigFloat BigFloat::mul(const BigFloat& x, size_t p, int threads) const {
 
 	return z;
 }
-BigFloat BigFloat::rcp(size_t p) const {
+BigFloat BigFloat::rcp(size_t p, int threads) const {
 	//  Compute reciprocal using Newton's Method.
 
 	//  r1 = r0 - (r0 * x - 1) * r0
@@ -504,16 +504,16 @@ BigFloat BigFloat::rcp(size_t p) const {
 	if (p == 2) s = 1;
 
 	//  Recurse at half the precision
-	BigFloat T = rcp(s);
+	BigFloat T = rcp(s, threads);
 
 	//  r1 = r0 - (r0 * x - 1) * r0
-	return T.sub(this->mul(T, p).sub(BigFloat(1), p).mul(T, p), p);
+	return T.sub(this->mul(T, p, threads).sub(BigFloat(1), p).mul(T, p, threads), p);
 }
-BigFloat BigFloat::div(const BigFloat& x, size_t p) const {
+BigFloat BigFloat::div(const BigFloat& x, size_t p, int threads) const {
 	//  Division
-	return this->mul(x.rcp(p), p);
+	return this->mul(x.rcp(p, threads), p, threads);
 }
-BigFloat invsqrt(uint32_t x, size_t p) {
+BigFloat invsqrt(uint32_t x, size_t p, int threads) {
 	//  Compute inverse square root using Newton's Method.
 
 	//            (  r0^2 * x - 1  )
@@ -556,13 +556,13 @@ BigFloat invsqrt(uint32_t x, size_t p) {
 	if (p == 2) s = 1;
 
 	//  Recurse at half the precision
-	BigFloat T = invsqrt(x, s);
+	BigFloat T = invsqrt(x, s, threads);
 
-	BigFloat temp = T.mul(T, p);         //  r0^2
-	temp = temp.mul(x);                 //  r0^2 * x
+	BigFloat temp = T.mul(T, p, threads);         //  r0^2
+	temp = temp.mul(x, 0, threads);                 //  r0^2 * x
 	temp = temp.sub(BigFloat(1), p);     //  r0^2 * x - 1
 	temp = temp.mul(2147483648);         //  (r0^2 * x - 1) / 2
 	temp.exp--;
-	temp = temp.mul(T, p);               //  (r0^2 * x - 1) / 2 * r0
+	temp = temp.mul(T, p, threads);               //  (r0^2 * x - 1) / 2 * r0
 	return T.sub(temp, p);               //  r0 - (r0^2 * x - 1) / 2 * r0
 }

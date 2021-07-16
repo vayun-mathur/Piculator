@@ -52,7 +52,7 @@ int main() {
 	{
 		return GetLastError();
 	}
-	Pi(1'000'000, 1);
+	Pi(10'000'000, 8);
 	/*
 	printf_color(GREEN, "Piculator v0.4\n");
 	printf_color(BRIGHT_BLUE, "Copyright 2020 Vayun Mathur\n\n\n");

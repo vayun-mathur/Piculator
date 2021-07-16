@@ -26,8 +26,8 @@ public:
 	BigFloat add(const BigFloat& x, size_t p = 0) const;
 	BigFloat sub(const BigFloat& x, size_t p = 0) const;
 	BigFloat mul(const BigFloat& x, size_t p = 0, int threads=1) const;
-	BigFloat rcp(size_t p) const;
-	BigFloat div(const BigFloat& x, size_t p) const;
+	BigFloat rcp(size_t p, int threads=1) const;
+	BigFloat div(const BigFloat& x, size_t p, int threads=1) const;
 
 private:
 	bool sign;      //  true = positive or zero, false = negative
@@ -40,7 +40,7 @@ private:
 	BigFloat uadd(const BigFloat& x, size_t p) const;
 	BigFloat usub(const BigFloat& x, size_t p) const;
 
-	friend BigFloat invsqrt(uint32_t x, size_t p);
+	friend BigFloat invsqrt(uint32_t x, size_t p, int threads);
 };
 
-BigFloat invsqrt(uint32_t x, size_t p);
+BigFloat invsqrt(uint32_t x, size_t p, int threads=1);
