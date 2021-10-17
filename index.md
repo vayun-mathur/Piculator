@@ -51,4 +51,4 @@ Computations of Pi to various sizes. The timings do not include the time taken t
 |       1,000,000 	|            3 seconds            	|                0 seconds              	|
 |      10,000,000 	|            35 seconds           	|                11 seconds           	  |
 |     100,000,000 	|      8 minutes, 46 seconds      	|          4 minutes, 53 seconds         	|
-|   1,000,000,000 	| 18 hours, 8 minutes, 51 seconds 	|                    TBD               	  |
+|   1,000,000,000 	| 18 hours, 8 minutes, 51 seconds 	|     2 hours, 21 minutes, 17 seconds 	  |
