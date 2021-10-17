@@ -1,8 +1,9 @@
 #include "PI.h"
 #include "Console.h"
+#include <locale.h>
 
 size_t digits = 10'000'000;
-size_t threads = 8;
+size_t threads = std::thread::hardware_concurrency();
 
 void calculatePi() {
 	printf_color(MAGENTA, "\n\nCalculate Pi:\n\n");
@@ -11,7 +12,7 @@ void calculatePi() {
 	printf_color(CYAN, "%d\n", threads);
 
 	printf_color(WHITE, "2\tDecimal Digits:   ");
-	printf_color(CYAN, "%llu\n\n", digits);
+	printf_color(CYAN, "%s\n\n", print_num_commas(digits));
 
 	printf_color(WHITE, "0\tRun Computation\n\n");
 
@@ -40,6 +41,7 @@ void calculatePi() {
 }
 
 int main() {
+	setlocale(LC_NUMERIC, "");
 	HANDLE hOut = GetStdHandle(STD_OUTPUT_HANDLE);
 	DWORD dwMode = 0;
 	if (!GetConsoleMode(hOut, &dwMode))
